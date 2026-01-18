@@ -32,11 +32,10 @@ func (r *ReplyModule) HandleReplyButtons(ctx *tgctx.MsgContext) bool {
 		"📈Track": r.handleShowTrackingMenu,
 	}
 	if handler, ok := replyButtons[ctx.Text]; ok {
-		handler(ctx) //
-
+		handler(ctx)
 		return true
 	}
-	log.Warn().Msgf("Unknown reply button: %s", ctx.Text) //?
+	log.Warn().Msgf("Unknown reply button: %s", ctx.Text)
 	return false
 }
 

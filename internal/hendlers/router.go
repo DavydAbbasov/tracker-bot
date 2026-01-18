@@ -29,7 +29,7 @@ func New(bot tgclient.TgBotAPI, tracksvc *service.TrackerService, entrysvc *serv
 		entrysvc: entrysvc,
 	}
 }
-func (m *Module) ShowTrackingMenu(ctx *tgctx.Message) {
+func (m *Module) ShowTrackingMenu(ctx *tgctx.MsgContext) {
 	stats, err := m.tracksvc.GetMainStats(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
 		log.Error().Err(err).Msg("GetMainStats failed")

@@ -2,8 +2,8 @@ package tgctx
 
 import "context"
 
-// Message is Telegram update context for message-based handlers.
-type Message struct {
+// MsgContext is Telegram update context for message-based handlers.
+type MsgContext struct {
 	Ctx context.Context
 
 	ChatID   int64
