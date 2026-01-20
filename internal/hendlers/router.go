@@ -108,7 +108,7 @@ func (m *Module) ShowSubscriptionMenu(ctx *tgctx.MsgContext) {
 		return
 	}
 
-	text := subscription.SubscriptionInlineMenuText(stats)
+	text := subscription.SubscriptionMenuText(stats)
 
 	msg := tgbotapi.NewMessage(ctx.ChatID, text)
 	msg.ParseMode = "Markdown"

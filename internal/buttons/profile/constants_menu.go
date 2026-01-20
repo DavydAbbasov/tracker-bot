@@ -15,10 +15,10 @@ const (
 
 // Entry inline menu buttons
 const (
-	ProfileButtonEditLanguage = "🌐 Язык"
-	ProfileButtonEditTimeZone = "📍 Часовой пояс"
-	ProfileButtonEditContact  = "📧 Контакт"
-	ProfileButtonRefresh      = "🔁 Обновить"
+	ProfileButtonEditLanguage = "🌐 Language"
+	ProfileButtonEditTimeZone = "📍 Time zone"
+	ProfileButtonEditContact  = "📧 Contact"
+	ProfileButtonRefresh      = "🔁 Refresh"
 )
 
 // Language manage reply buttons
@@ -28,4 +28,17 @@ const (
 	ProfileButtonLanguageGerman    = "🇩🇪 Deutsch"
 	ProfileButtonLanguageUkrainian = "🇺🇦 Українська"
 	ProfileButtonLanguageArabian   = "🇸🇦 العربية"
+)
+
+// ---------------------------------------------------------------------
+// Track UI texts (titles/labels shown inside messages)
+
+// Main screen
+const (
+	ProfileUIMainTitle    = "👤 Profile"
+	ProfileUIMainID       = "🛜 ID:"
+	ProfileUIMainName     = "👤 Name:"
+	ProfileUIMainLanguage = "🌐 Language"
+	ProfileUIMainTimeZone = "📍 Time zone:"
+	ProfileUIMainEmail    = "📧 Email:"
 )

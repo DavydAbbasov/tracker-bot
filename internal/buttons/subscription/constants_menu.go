@@ -14,8 +14,19 @@ const (
 
 // Entry inline menu buttons
 const (
-	SubscriptionButtonTariffPlans   = "🗓 Тарифные планы"
+	SubscriptionButtonTariffPlans   = "🗓 Tariff plans"
 	SubscriptionButtonFreePlan      = "🎁 Free"
-	SubscriptionButtonSupport       = "🛫 Поддержка"
-	SubscriptionButtonPaymentChange = "💳 Изменить оплату"
+	SubscriptionButtonSupport       = "🛫 Support"
+	SubscriptionButtonPaymentChange = "💳 Change payment"
+)
+
+// ---------------------------------------------------------------------
+// Track UI texts (titles/labels shown inside messages)
+
+// Main screen
+const (
+	SubscriptionUIMainTitle      = "💳 Subscription"
+	SubscriptionUIMainTariffPlan = "🗓 Tariff plan:"
+	SubscriptionUIMainDaysEnd    = "🕐 Days end:"
+	SubscriptionUIMainMessage    = "To subscribe, go to: 🗓 Tariff plans"
 )
