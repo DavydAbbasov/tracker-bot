@@ -4,16 +4,21 @@ import (
 	"context"
 	"fmt"
 	"tracker-bot/internal/config"
+	"tracker-bot/internal/dispatcher"
+	router "tracker-bot/internal/handlers"
 	"tracker-bot/internal/repo"
 	"tracker-bot/internal/service"
 	"tracker-bot/internal/utils/pgclient"
+	tgclient "tracker-bot/internal/utils/tgcient"
 )
 
 type Application struct {
-	cfg     *config.Config
-	db      *pgclient.PostgreDB
-	repo    *repo.Repo
-	service *service.EntryService
+	cfg        *config.Config
+	db         *pgclient.PostgreDB
+	repo       *repo.TrackerRepo
+	service    *service.EntryService
+	bot        *tgclient.Client
+	dispatcher *dispatcher.Dispatcher
 }
 
 func NewApplication() *Application {
@@ -29,7 +34,26 @@ func (app *Application) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("init pg client: %w", err)
 	}
-	_ = db
+	app.db = db
+
+	bot, err := tgclient.New(app.cfg.Telegram.TelegramToken)
+	if err != nil {
+		return fmt.Errorf("init telegram bot: %w", err)
+	}
+	app.bot = bot
+
+	profileRepo := repo.NewProfileRepo(app.db.Pool())
+	trackRepo := repo.NewTrackRepo(app.db.Pool())
+	learningRepo := repo.NewLearningRepo(app.db.Pool())
+	subscriptionRepo := repo.NewSubscriptionRepo(app.db.Pool())
+
+	provilesvc := service.NewProfileService(profileRepo)
+	tracksvc := service.NewTracker(trackRepo)
+	learningsvc := service.NewLearning(learningRepo)
+	subscriptionsvc := service.NewSubscription(subscriptionRepo)
+
+	module = router.New(app.bot, provilesvc, tracksvc, learningsvc, subscriptionsvc)
+
 	return nil
 }
 func (a *Application) initConfig() error {

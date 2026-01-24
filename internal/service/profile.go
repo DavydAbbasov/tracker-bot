@@ -3,28 +3,62 @@ package service
 import (
 	"context"
 	"tracker-bot/internal/models"
+	"tracker-bot/internal/repo"
 )
 
-type ProfileRepository interface {
+type ProfileService interface {
+	GetProfileStats(ctx context.Context, userID int64) (*models.ProfileStats, error)
+	ChangeLanguage(ctx context.Context, userID int64, language string) error
+	ChangeTimeZone(ctx context.Context, userID int64, timezone string) error
 }
 
-type ProfileService struct {
-	repo ProfileRepository
+type profileService struct {
+	repo repo.ProfileRepo
 }
 
-func NewProfile(repo ProfileRepository) *ProfileService {
-	return &ProfileService{
+func NewProfileService(repo repo.ProfileRepo) ProfileService {
+	return &profileService{
 		repo: repo,
 	}
 }
 
-func (srv *ProfileService) GetProfileStats(ctx context.Context, userID int64) (models.ProfileStats, error) {
-	return models.ProfileStats{
-		TgUserID:    userID, // тут надо брать не id из БД
-		UserName:    "Alex",
-		PhoneNumber: "+142342423",
-		Email:       "mock@email.com",
-		Language:    "English",
-		TimeZone:    "Europe/London",
-	}, nil
+func (srv *profileService) GetProfileStats(ctx context.Context, userID int64) (*models.ProfileStats, error) {
+	profile, err := srv.repo.GetByID(ctx, userID)
+	if err != nil {
+		return &models.ProfileStats{}, err
+	}
+
+	return profile, nil
+}
+
+func (srv *profileService) ChangeLanguage(ctx context.Context, userID int64, language string) error {
+	profile, err := srv.repo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	profile.Language = language
+
+	err = srv.repo.Update(ctx, userID, profile)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (srv *profileService) ChangeTimeZone(ctx context.Context, userID int64, timezone string) error {
+	profile, err := srv.repo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	profile.TimeZone = timezone
+
+	err = srv.repo.Update(ctx, userID, profile)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

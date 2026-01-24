@@ -28,15 +28,15 @@ type TrackerRepo interface {
 	ToggleSelectedActive(ctx context.Context, userID, activityID int64) error
 	DeleteSelected(ctx context.Context, userID int64) (int64, error)
 }
-type Repo struct {
+type trackRepo struct {
 	db *pgxpool.Pool
 }
 
-func New(db *pgxpool.Pool) *Repo {
-	return &Repo{db: db}
+func NewTrackRepo(db *pgxpool.Pool) TrackerRepo {
+	return &trackRepo{db: db}
 }
 
-func (r *Repo) Create(ctx context.Context, userID int64, name, emoji string) (Activity, error) {
+func (r *trackRepo) Create(ctx context.Context, userID int64, name, emoji string) (Activity, error) {
 	if userID <= 0 {
 		return Activity{}, fmt.Errorf("create activity: invalid userID")
 	}
@@ -76,7 +76,7 @@ func (r *Repo) Create(ctx context.Context, userID int64, name, emoji string) (Ac
 	return a, nil
 }
 
-func (r *Repo) ListActive(ctx context.Context, userID int64) ([]Activity, error) {
+func (r *trackRepo) ListActive(ctx context.Context, userID int64) ([]Activity, error) {
 	if userID <= 0 {
 		return nil, fmt.Errorf("list active: invalid userID")
 	}
@@ -110,7 +110,7 @@ func (r *Repo) ListActive(ctx context.Context, userID int64) ([]Activity, error)
 	return out, nil
 }
 
-func (r *Repo) SelectedListActive(ctx context.Context, userID int64) ([]int64, error) {
+func (r *trackRepo) SelectedListActive(ctx context.Context, userID int64) ([]int64, error) {
 	if userID <= 0 {
 		return nil, fmt.Errorf("selected list: invalid userID")
 	}
@@ -143,7 +143,7 @@ func (r *Repo) SelectedListActive(ctx context.Context, userID int64) ([]int64, e
 }
 
 // to do transaction
-func (r *Repo) ToggleSelectedActive(ctx context.Context, userID, activityID int64) error {
+func (r *trackRepo) ToggleSelectedActive(ctx context.Context, userID, activityID int64) error {
 	if userID <= 0 || activityID <= 0 {
 		return fmt.Errorf("toggle selected: invalid ids")
 	}
@@ -194,7 +194,7 @@ func (r *Repo) ToggleSelectedActive(ctx context.Context, userID, activityID int6
 	return tx.Commit(ctx)
 }
 
-func (r *Repo) DeleteSelected(ctx context.Context, userID int64) (int64, error) {
+func (r *trackRepo) DeleteSelected(ctx context.Context, userID int64) (int64, error) {
 	if userID <= 0 {
 		return 0, fmt.Errorf("delete selected: invalid userID")
 	}

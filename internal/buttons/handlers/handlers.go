@@ -1,7 +1,7 @@
-package hendlers
+package handlers
 
 import (
-	router "tracker-bot/internal/hendlers"
+	router "tracker-bot/internal/handlers"
 	tgclient "tracker-bot/internal/utils/tgcient"
 	"tracker-bot/internal/utils/tgctx"
 
