@@ -4,12 +4,14 @@ import (
 	"tracker-bot/internal/repo"
 )
 
-type EntryService struct {
-	repository repo.Repo
+type EntryService interface{}
+
+type entryService struct {
+	repo repo.EntryRepository
 }
 
-func New(repository repo.Repo) *EntryService {
-	return &EntryService{
-		repository: repository,
+func NewEntryService(repo repo.EntryRepository) EntryService {
+	return &entryService{
+		repo: repo,
 	}
 }

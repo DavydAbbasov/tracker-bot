@@ -3,22 +3,24 @@ package service
 import (
 	"context"
 	"tracker-bot/internal/models"
+	"tracker-bot/internal/repo"
 )
 
-type LearningRepository interface {
+type LearningService interface {
+	GetLearningStats(ctx context.Context, userID int64) (models.LearningStats, error)
 }
 
-type LearningService struct {
-	repo LearningRepository
+type learningService struct {
+	repo repo.LearningRepository
 }
 
-func NewLearning(repo LearningRepository) *LearningService {
-	return &LearningService{
+func NewLearningService(repo repo.LearningRepository) LearningService {
+	return &learningService{
 		repo: repo,
 	}
 }
 
-func (srv *LearningService) GetLearningStats(ctx context.Context, userID int64) (models.LearningStats, error) {
+func (srv *learningService) GetLearningStats(ctx context.Context, userID int64) (models.LearningStats, error) {
 	return models.LearningStats{
 		Language:     "English",
 		TotalWords:   463,

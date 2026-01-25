@@ -24,7 +24,7 @@ type Client struct {
 	handlerProcessingFunc HandlerFunc
 }
 
-func New(token string) (*Client, error) {
+func New(token string) (*tgbotapi.BotAPI, error) {
 	if token == "" {
 		return nil, fmt.Errorf("telegram token is empty")
 	}
@@ -34,5 +34,5 @@ func New(token string) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{client: api}, nil
+	return api, nil
 }

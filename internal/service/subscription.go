@@ -3,22 +3,24 @@ package service
 import (
 	"context"
 	"tracker-bot/internal/models"
+	"tracker-bot/internal/repo"
 )
 
-type SubscriptionRepository interface {
+type SubscriptionService interface {
+	GetSubscriptionStats(ctx context.Context, userID int64) (models.SubscriptionStats, error)
 }
 
-type SubscriptionService struct {
-	repo SubscriptionRepository
+type subscriptionService struct {
+	repo repo.SubscriptionRepository
 }
 
-func NewSubscription(repo SubscriptionRepository) *SubscriptionService {
-	return &SubscriptionService{
+func NewSubscriptionService(repo repo.SubscriptionRepository) SubscriptionService {
+	return &subscriptionService{
 		repo: repo,
 	}
 }
 
-func (srv *SubscriptionService) GetSubscriptionStats(ctx context.Context, userID int64) (models.SubscriptionStats, error) {
+func (srv *subscriptionService) GetSubscriptionStats(ctx context.Context, userID int64) (models.SubscriptionStats, error) {
 	return models.SubscriptionStats{
 		ActivePlan: "Free",
 		DaysEnd:    23,

@@ -1,12 +1,12 @@
 package router
 
 import (
+	"tracker-bot/internal/buttons/entry"
 	"tracker-bot/internal/buttons/learning"
 	"tracker-bot/internal/buttons/profile"
 	"tracker-bot/internal/buttons/subscription"
 	"tracker-bot/internal/buttons/track"
 	"tracker-bot/internal/service"
-	tgclient "tracker-bot/internal/utils/tgcient"
 	"tracker-bot/internal/utils/tgctx"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -20,15 +20,15 @@ type Handler interface {
 }
 
 type Module struct {
-	bot             tgclient.TgBotAPI
-	profilesvc      *service.ProfileService
-	tracksvc        *service.TrackerService
-	learningsvc     *service.LearningService
-	subscriptionsvc *service.SubscriptionService
-	entrysvc        *service.EntryService
+	bot             *tgbotapi.BotAPI
+	profilesvc      service.ProfileService
+	tracksvc        service.TrackerService
+	learningsvc     service.LearningService
+	subscriptionsvc service.SubscriptionService
+	entrysvc        service.EntryService
 }
 
-func New(bot tgclient.TgBotAPI, profilesvc *service.ProfileService, tracksvc *service.TrackerService, learningsvc *service.LearningService, subscriptionsvc *service.SubscriptionService, entrysvc *service.EntryService) *Module {
+func New(bot *tgbotapi.BotAPI, entrysvc service.EntryService, profilesvc service.ProfileService, tracksvc service.TrackerService, learningsvc service.LearningService, subscriptionsvc service.SubscriptionService) *Module {
 	return &Module{
 		bot:             bot,
 		profilesvc:      profilesvc,
@@ -36,6 +36,18 @@ func New(bot tgclient.TgBotAPI, profilesvc *service.ProfileService, tracksvc *se
 		learningsvc:     learningsvc,
 		subscriptionsvc: subscriptionsvc,
 		entrysvc:        entrysvc,
+	}
+}
+
+func (m *Module) ShowEntryMenu(ctx *tgctx.MsgContext) {
+	text := entry.EntryMenuText()
+
+	msg := tgbotapi.NewMessage(ctx.ChatID, text)
+	msg.ParseMode = "Markdown"
+	msg.ReplyMarkup = entry.EntryInlineMenu()
+
+	if _, err := m.bot.Send(msg); err != nil {
+		log.Error().Err(err).Msg("send entry menu failed")
 	}
 }
 

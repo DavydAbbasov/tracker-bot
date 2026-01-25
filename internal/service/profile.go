@@ -13,10 +13,10 @@ type ProfileService interface {
 }
 
 type profileService struct {
-	repo repo.ProfileRepo
+	repo repo.ProfileRepository
 }
 
-func NewProfileService(repo repo.ProfileRepo) ProfileService {
+func NewProfileService(repo repo.ProfileRepository) ProfileService {
 	return &profileService{
 		repo: repo,
 	}

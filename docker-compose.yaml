@@ -4,13 +4,33 @@ services:
     environment:
       POSTGRES_DB: tracker
       POSTGRES_USER: tracker
-      POSTGRES_PASSWORD: trackers
+      POSTGRES_PASSWORD: tracker
     ports: ["5434:5432"]   
     volumes: ["db_data:/var/lib/postgresql/data"]
     healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracker -d tracker"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tracker-bot
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HOST_DB: "db"
+      PORT_DB: "5432"
+      USER_DB: "tracker"
+      PASSWORD_DB: "tracker"
+      NAME_DB: "tracker"
+      TELEGRAM_BOT_DEBUG: "false"
+    restart: unless-stopped
 
 volumes:
   db_data:

@@ -5,7 +5,7 @@ import (
 	"tracker-bot/internal/models"
 )
 
-func ProfileMenuText(stats models.ProfileStats) string {
+func ProfileMenuText(stats *models.ProfileStats) string {
 	return fmt.Sprintf(
 		"%s\n\n%d *%s*\n%s *%s*\n%s *\n",
 		ProfileUIMainTitle,

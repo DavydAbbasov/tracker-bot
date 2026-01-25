@@ -4,12 +4,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type LearningRepo interface {
+type LearningRepository interface {
 }
-type learningRepo struct {
+type learningRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewLearningRepo(db *pgxpool.Pool) LearningRepo {
-	return &learningRepo{db: db}
+func NewLearningRepository(db *pgxpool.Pool) LearningRepository {
+	return &learningRepository{db: db}
 }

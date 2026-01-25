@@ -29,10 +29,10 @@ func New(bot tgclient.TgBotAPI, track *router.Module, subscription *router.Modul
 }
 func (r *ReplyModule) HandleReplyButtons(ctx *tgctx.MsgContext) bool {
 	replyButtons := map[string]func(*tgctx.MsgContext){
-		"👤My account":    r.handleShowProfileMenu,
-		"📈Track":         r.handleShowTrackingMenu,
-		"🧠Learning":      r.handleShowLearningMenu,
-		"💳 Subscription": r.handleShowSubscriptionMenu,
+		"👤My account":   r.handleShowProfileMenu,
+		"📈Track":        r.handleShowTrackingMenu,
+		"🧠Learning":     r.handleShowLearningMenu,
+		"💳Subscription": r.handleShowSubscriptionMenu,
 	}
 	if handler, ok := replyButtons[ctx.Text]; ok {
 		handler(ctx)

@@ -3,26 +3,23 @@ package service
 import (
 	"context"
 	"tracker-bot/internal/models"
+	"tracker-bot/internal/repo"
 )
 
-type TrackerRepository interface {
-	EnsureIDByTelegram(ctx context.Context, tgID int64, username string) (int64, error)
-	InsertUser(ctx context.Context, tgID int64, username *string) error
-	GetUserByTelegramID(ctx context.Context, tgID int64) (*models.User, error)
-	UpdateUsername(ctx context.Context, tgID int64, uname string) (int64, error)
-	UpdateLanguage(ctx context.Context, tgID int64, lang string) (int64, error)
+type TrackerService interface {
+	GetMainStats(ctx context.Context, userID int64) (models.MainStats, error)
 }
 
-type TrackerService struct {
-	repo TrackerRepository
+type trackerService struct {
+	repo repo.TrackerRepository
 }
 
-func NewTracker(repo TrackerRepository) *TrackerService {
-	return &TrackerService{
+func NewTrackerService(repo repo.TrackerRepository) TrackerService {
+	return &trackerService{
 		repo: repo,
 	}
 }
-func (srv *TrackerService) GetMainStats(ctx context.Context, userID int64) (models.MainStats, error) {
+func (srv *trackerService) GetMainStats(ctx context.Context, userID int64) (models.MainStats, error) {
 	// TODO: заменить на реальные данные из repo
 	return models.MainStats{
 		CurrentActivityName: "Go",

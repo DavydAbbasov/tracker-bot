@@ -10,14 +10,16 @@ import (
 	"tracker-bot/internal/service"
 	"tracker-bot/internal/utils/pgclient"
 	tgclient "tracker-bot/internal/utils/tgcient"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type Application struct {
 	cfg        *config.Config
 	db         *pgclient.PostgreDB
-	repo       *repo.TrackerRepo
+	repo       *repo.TrackerRepository
 	service    *service.EntryService
-	bot        *tgclient.Client
+	bot        *tgbotapi.BotAPI
 	dispatcher *dispatcher.Dispatcher
 }
 
@@ -42,17 +44,23 @@ func (app *Application) Start(ctx context.Context) error {
 	}
 	app.bot = bot
 
-	profileRepo := repo.NewProfileRepo(app.db.Pool())
-	trackRepo := repo.NewTrackRepo(app.db.Pool())
-	learningRepo := repo.NewLearningRepo(app.db.Pool())
-	subscriptionRepo := repo.NewSubscriptionRepo(app.db.Pool())
+	entryRepo := repo.EntryRepository(app.db.Pool())
+	profileRepo := repo.NewProfileRepository(app.db.Pool())
+	trackRepo := repo.NewTrackerRepository(app.db.Pool())
+	learningRepo := repo.NewLearningRepository(app.db.Pool())
+	subscriptionRepo := repo.NewSubscriptionRepository(app.db.Pool())
 
+	entrysvc := service.NewEntryService(entryRepo)
 	provilesvc := service.NewProfileService(profileRepo)
-	tracksvc := service.NewTracker(trackRepo)
-	learningsvc := service.NewLearning(learningRepo)
-	subscriptionsvc := service.NewSubscription(subscriptionRepo)
+	tracksvc := service.NewTrackerService(trackRepo)
+	learningsvc := service.NewLearningService(learningRepo)
+	subscriptionsvc := service.NewSubscriptionService(subscriptionRepo)
 
-	module = router.New(app.bot, provilesvc, tracksvc, learningsvc, subscriptionsvc)
+	module := router.New(app.bot, entrysvc, provilesvc, tracksvc, learningsvc, subscriptionsvc)
+	app.dispatcher = dispatcher.New(app.bot, module, module, module, module, module)
+
+	app.dispatcher.Run()
+	fmt.Println("dispatcher running")
 
 	return nil
 }

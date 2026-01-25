@@ -12,11 +12,12 @@ type Config struct {
 	PostreSQL PgConfig
 }
 type PgConfig struct {
-	Host string `env:"HOST_DB"`
-	Port uint16 `env:"PORT_DB"`
-	Name string `env:"NAME_DB"`
-	User string `env:"USER_DB"`
-	Pass string `env:"PASSWORD_DB"`
+	Host    string `env:"HOST_DB"`
+	Port    uint16 `env:"PORT_DB"`
+	Name    string `env:"NAME_DB"`
+	User    string `env:"USER_DB"`
+	Pass    string `env:"PASSWORD_DB"`
+	SSLMode string `env:"SSL_MODE" env-default:"disable"`
 }
 type Telegram struct {
 	TelegramToken    string `env:"TELEGRAM_TOKEN"`
@@ -45,8 +46,8 @@ func ParseConfig() (*Config, error) {
 
 func (c Config) PostgresDSN() string {
 	dsn := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s",
-		c.PostreSQL.Host, c.PostreSQL.Port, c.PostreSQL.User, c.PostreSQL.Pass, c.PostreSQL.Name,
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		c.PostreSQL.Host, c.PostreSQL.Port, c.PostreSQL.User, c.PostreSQL.Pass, c.PostreSQL.Name, c.PostreSQL.SSLMode,
 	)
 	return dsn
 }

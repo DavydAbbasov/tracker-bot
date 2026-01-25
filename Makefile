@@ -5,7 +5,7 @@ deps: ## Install dependencies
 	go mod tidy
 
 run: ## Run the application
-	go run cmd/main.go
+	go run cmd/tracker-bot/main.go
 
 test: ## Run tests
 	go test -v ./...

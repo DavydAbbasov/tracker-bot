@@ -2,12 +2,12 @@ package repo
 
 import "github.com/jackc/pgx/v5/pgxpool"
 
-type SubscriptionRepo interface {
+type SubscriptionRepository interface {
 }
-type subscriptionRepo struct {
+type subscriptionRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewSubscriptionRepo(db *pgxpool.Pool) SubscriptionRepo {
-	return &subscriptionRepo{db: db}
+func NewSubscriptionRepository(db *pgxpool.Pool) SubscriptionRepository {
+	return &subscriptionRepository{db: db}
 }

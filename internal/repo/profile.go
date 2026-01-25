@@ -9,21 +9,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type ProfileRepo interface {
+type ProfileRepository interface {
 	Create(ctx context.Context, stats *models.ProfileStats) error
 	GetByID(ctx context.Context, id int64) (*models.ProfileStats, error)
 	Update(ctx context.Context, id int64, stats *models.ProfileStats) error
 	Delete(ctx context.Context, id int64) error
 }
-type profileRepo struct {
+type profileRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewProfileRepo(db *pgxpool.Pool) ProfileRepo {
-	return &profileRepo{db: db}
+func NewProfileRepository(db *pgxpool.Pool) ProfileRepository {
+	return &profileRepository{db: db}
 }
 
-func (repo *profileRepo) Create(ctx context.Context, stats *models.ProfileStats) error {
+func (repo *profileRepository) Create(ctx context.Context, stats *models.ProfileStats) error {
 	q := `
 		INSERT INTO users (tg_user_id, username, phone_number, email, language, timezone)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -37,7 +37,7 @@ func (repo *profileRepo) Create(ctx context.Context, stats *models.ProfileStats)
 	return nil
 }
 
-func (repo *profileRepo) GetByID(ctx context.Context, id int64) (*models.ProfileStats, error) {
+func (repo *profileRepository) GetByID(ctx context.Context, id int64) (*models.ProfileStats, error) {
 	q := `
 	SELECT tg_user_id, username, phone_number, email, language, timezone
 	FROM users
@@ -64,7 +64,7 @@ func (repo *profileRepo) GetByID(ctx context.Context, id int64) (*models.Profile
 	return &profile, nil
 }
 
-func (repo *profileRepo) Update(ctx context.Context, id int64, stats *models.ProfileStats) error {
+func (repo *profileRepository) Update(ctx context.Context, id int64, stats *models.ProfileStats) error {
 	q := `
 		UPDATE users
 		SET language = $2, timezone = $3
@@ -84,7 +84,7 @@ func (repo *profileRepo) Update(ctx context.Context, id int64, stats *models.Pro
 	return nil
 }
 
-func (repo *profileRepo) Delete(ctx context.Context, id int64) error {
+func (repo *profileRepository) Delete(ctx context.Context, id int64) error {
 	q := `
 		DELETE FROM users
 		WHERE id = $1
