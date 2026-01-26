@@ -1,6 +1,10 @@
 package dispatcher
 
 import (
+	"context"
+	"tracker-bot/internal/models"
+	"tracker-bot/internal/service"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/rs/zerolog/log"
 
@@ -11,6 +15,8 @@ import (
 
 type Dispatcher struct {
 	bot          *tgbotapi.BotAPI
+	appCtx       context.Context
+	entrysvc     service.EntryService
 	track        *router.Module
 	subscription *router.Module
 	entry        *router.Module
@@ -22,6 +28,8 @@ type Dispatcher struct {
 
 func New(
 	bot *tgbotapi.BotAPI,
+	appCtx context.Context,
+	entrysvc service.EntryService,
 	track *router.Module,
 	subscription *router.Module,
 	entry *router.Module,
@@ -32,8 +40,14 @@ func New(
 		log.Fatal().Msg("Dispatcher: nil bot interfaces.BotAPI")
 	}
 
+	if appCtx == nil {
+		appCtx = context.Background()
+	}
+
 	d := &Dispatcher{
 		bot:          bot,
+		appCtx:       appCtx,
+		entrysvc:     entrysvc,
 		track:        track,
 		subscription: subscription,
 		entry:        entry,
@@ -62,59 +76,30 @@ func (d *Dispatcher) Run() {
 	}
 }
 
-func (d *Dispatcher) handleMessage(msg *tgbotapi.Message) {
-	if msg == nil {
-		return
+func (d *Dispatcher) ensureUser(ctx *tgctx.MsgContext, chatID int64, from *tgbotapi.User) bool {
+	if from == nil {
+		return false
 	}
 
-	ctx := d.newMessageContext(msg)
-
-	// 1) обработка состояний пользователя (если появится FSM)
-	if d.handleUserState(ctx) {
-		return
+	in := &models.UserInput{
+		TgUserID: int64(from.ID),
+		UserName: &from.UserName,
 	}
 
-	// 2) reply-кнопки
-	if d.reply != nil && d.reply.HandleReplyButtons(ctx) {
-		return
+	dbID, err := d.entrysvc.EnsureUser(ctx.Ctx, in)
+	if err != nil {
+		log.Error().Err(err).Msg("ensure user failed")
+		out := tgbotapi.NewMessage(chatID, "⚠️ Ошибка. Попробуй ещё раз.")
+		_, _ = d.bot.Send(out)
+		return false
 	}
-
-	// 3) команды
-	if msg.IsCommand() {
-		d.handleCommand(msg, ctx)
-		return
-	}
-
-	// 4) обычный текст
-	d.handleText(ctx)
-}
-
-func (d *Dispatcher) handleCallback(q *tgbotapi.CallbackQuery) {
-	if q == nil || q.Message == nil {
-		return
-	}
-
-	ack := tgbotapi.NewCallback(q.ID, "")
-	if _, err := d.bot.Request(ack); err != nil {
-		log.Error().Err(err).Msg("callback ack failed")
-	}
-
-	ctx := &tgctx.MsgContext{
-		ChatID: q.Message.Chat.ID,
-		Text:   q.Data,
-	}
-
-	if q.From != nil {
-		ctx.UserID = int64(q.From.ID)
-	}
-
-	if d.reply != nil && d.reply.HandleReplyButtons(ctx) {
-		return
-	}
+	ctx.DBUserID = dbID
+	return true
 }
 
 func (d *Dispatcher) newMessageContext(msg *tgbotapi.Message) *tgctx.MsgContext {
 	ctx := &tgctx.MsgContext{
+		Ctx:    d.appCtx,
 		ChatID: msg.Chat.ID,
 		Text:   msg.Text,
 	}
@@ -124,6 +109,63 @@ func (d *Dispatcher) newMessageContext(msg *tgbotapi.Message) *tgctx.MsgContext 
 	}
 
 	return ctx
+}
+
+func (d *Dispatcher) handleMessage(msg *tgbotapi.Message) {
+	if msg == nil || msg.From == nil {
+		return
+	}
+
+	mctx := d.newMessageContext(msg)
+
+	if !d.ensureUser(mctx, msg.Chat.ID, msg.From) {
+		return
+	}
+
+	// 1) команды СНАЧАЛА (чтобы /start не шёл в reply)
+	if msg.IsCommand() {
+		d.handleCommand(msg, mctx)
+		return
+	}
+
+	// 2) FSM
+	if d.handleUserState(mctx) {
+		return
+	}
+
+	// 3) reply-кнопки
+	if d.reply != nil && d.reply.HandleReplyButtons(mctx) {
+		return
+	}
+
+	// 4) обычный текст
+	d.handleText(mctx)
+}
+
+func (d *Dispatcher) handleCallback(q *tgbotapi.CallbackQuery) {
+	if q == nil || q.Message == nil || q.From == nil {
+		return
+	}
+
+	ack := tgbotapi.NewCallback(q.ID, "")
+	if _, err := d.bot.Request(ack); err != nil {
+		log.Error().Err(err).Msg("callback ack failed")
+	}
+
+	mctx := &tgctx.MsgContext{
+		Ctx:    d.appCtx,
+		ChatID: q.Message.Chat.ID,
+		Text:   q.Data,
+		UserID: int64(q.From.ID),
+	}
+
+	if !d.ensureUser(mctx, q.Message.Chat.ID, q.From) {
+		return
+	}
+
+	if d.reply != nil && d.reply.HandleReplyButtons(mctx) {
+		return
+	}
 }
 
 func (d *Dispatcher) handleUserState(ctx *tgctx.MsgContext) bool {

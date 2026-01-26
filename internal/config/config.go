@@ -51,3 +51,15 @@ func (c Config) PostgresDSN() string {
 	)
 	return dsn
 }
+
+func (c Config) PostgresURL() string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		c.PostreSQL.User,
+		c.PostreSQL.Pass,
+		c.PostreSQL.Host,
+		c.PostreSQL.Port,
+		c.PostreSQL.Name,
+		c.PostreSQL.SSLMode,
+	)
+}

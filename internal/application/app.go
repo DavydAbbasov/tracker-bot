@@ -44,7 +44,7 @@ func (app *Application) Start(ctx context.Context) error {
 	}
 	app.bot = bot
 
-	entryRepo := repo.EntryRepository(app.db.Pool())
+	entryRepo := repo.NewEntryRepository(app.db.Pool())
 	profileRepo := repo.NewProfileRepository(app.db.Pool())
 	trackRepo := repo.NewTrackerRepository(app.db.Pool())
 	learningRepo := repo.NewLearningRepository(app.db.Pool())
@@ -57,7 +57,7 @@ func (app *Application) Start(ctx context.Context) error {
 	subscriptionsvc := service.NewSubscriptionService(subscriptionRepo)
 
 	module := router.New(app.bot, entrysvc, provilesvc, tracksvc, learningsvc, subscriptionsvc)
-	app.dispatcher = dispatcher.New(app.bot, module, module, module, module, module)
+	app.dispatcher = dispatcher.New(app.bot, ctx, entrysvc, module, module, module, module, module)
 
 	app.dispatcher.Run()
 	fmt.Println("dispatcher running")

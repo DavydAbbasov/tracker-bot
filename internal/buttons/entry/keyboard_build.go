@@ -1,22 +1,22 @@
 package entry
 
 import (
-	buttonbuilder "tracker-bot/internal/buttons"
+	"tracker-bot/pkg/buttonbuilder"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-// Inline button menus
+// Reply button menus
 
-func EntryInlineMenu() tgbotapi.InlineKeyboardMarkup {
-	return buttonbuilder.IK(
-		buttonbuilder.IR(
-			buttonbuilder.IB(EntryButtonProfile, EntryCBProfile),
-			buttonbuilder.IB(EntryButtonTrack, EntryCBTrack),
+func EntryReplyMenu() tgbotapi.ReplyKeyboardMarkup {
+	return buttonbuilder.RK(
+		buttonbuilder.RR(
+			buttonbuilder.RB(EntryButtonProfile),
+			buttonbuilder.RB(EntryButtonTrack),
 		),
-		buttonbuilder.IR(
-			buttonbuilder.IB(EntryButtonLearning, EntryCBLearning),
-			buttonbuilder.IB(EntryButtonSubscription, EntryCBSubscription),
+		buttonbuilder.RR(
+			buttonbuilder.RB(EntryButtonLearning),
+			buttonbuilder.RB(EntryButtonSubscription),
 		),
 	)
 }

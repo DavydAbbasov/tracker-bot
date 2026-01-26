@@ -41,7 +41,7 @@ func (repo *profileRepository) GetByID(ctx context.Context, id int64) (*models.P
 	q := `
 	SELECT tg_user_id, username, phone_number, email, language, timezone
 	FROM users
-	WHERE id = $1
+	WHERE tg_user_id = $1
 	`
 	var profile models.ProfileStats
 

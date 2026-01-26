@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	errlocal "tracker-bot/internal/errors"
+	errlocal "tracker-bot/internal/models"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v5"

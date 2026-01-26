@@ -19,7 +19,7 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	dsn := cfg.PostgresDSN()
+	dsn := cfg.PostgresURL()
 
 	m, err := migrate.New(
 		"file://migrations",

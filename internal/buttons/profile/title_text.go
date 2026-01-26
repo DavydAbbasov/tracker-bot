@@ -3,16 +3,22 @@ package profile
 import (
 	"fmt"
 	"tracker-bot/internal/models"
+	"tracker-bot/pkg/textbuilder"
 )
 
 func ProfileMenuText(stats *models.ProfileStats) string {
 	return fmt.Sprintf(
-		"%s\n\n%d *%s*\n%s *%s*\n%s *\n",
+		"%s\n\n"+
+			"%s %d\n"+
+			"%s %s\n"+
+			"%s %s\n"+
+			"%s %s\n"+
+			"%s %s",
 		ProfileUIMainTitle,
 		ProfileUIMainID, stats.TgUserID,
-		ProfileUIMainName, stats.UserName,
-		ProfileUIMainLanguage, stats.Language,
-		ProfileUIMainTimeZone, stats.TimeZone,
-		ProfileUIMainEmail, stats.Email,
+		ProfileUIMainName, textbuilder.StrOrDashMD(stats.UserName),
+		ProfileUIMainLanguage, textbuilder.StrOrDashMD(stats.Language),
+		ProfileUIMainTimeZone, textbuilder.StrOrDashMD(stats.TimeZone),
+		ProfileUIMainEmail, textbuilder.StrOrDashMD(stats.Email),
 	)
 }

@@ -1,4 +1,4 @@
-package router
+package handlers
 
 import (
 	"tracker-bot/internal/buttons/entry"
@@ -44,7 +44,7 @@ func (m *Module) ShowEntryMenu(ctx *tgctx.MsgContext) {
 
 	msg := tgbotapi.NewMessage(ctx.ChatID, text)
 	msg.ParseMode = "Markdown"
-	msg.ReplyMarkup = entry.EntryInlineMenu()
+	msg.ReplyMarkup = entry.EntryReplyMenu()
 
 	if _, err := m.bot.Send(msg); err != nil {
 		log.Error().Err(err).Msg("send entry menu failed")
@@ -52,7 +52,7 @@ func (m *Module) ShowEntryMenu(ctx *tgctx.MsgContext) {
 }
 
 func (m *Module) ShowProfileMenu(ctx *tgctx.MsgContext) {
-	stats, err := m.profilesvc.GetProfileStats(ctx.Ctx, ctx.DBUserID)
+	stats, err := m.profilesvc.GetProfileStats(ctx.Ctx, ctx.UserID)
 	if err != nil {
 		log.Error().Err(err).Msg("GetProfile failed")
 		msg := tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to load profile data. Please try again.")
@@ -63,7 +63,7 @@ func (m *Module) ShowProfileMenu(ctx *tgctx.MsgContext) {
 	text := profile.ProfileMenuText(stats)
 
 	msg := tgbotapi.NewMessage(ctx.ChatID, text)
-	msg.ParseMode = "Markdown"
+	// msg.ParseMode = "Markdown"
 	msg.ReplyMarkup = profile.ProfileEntryInlineMenu()
 
 	if _, err := m.bot.Send(msg); err != nil {
@@ -72,7 +72,7 @@ func (m *Module) ShowProfileMenu(ctx *tgctx.MsgContext) {
 }
 
 func (m *Module) ShowTrackingMenu(ctx *tgctx.MsgContext) {
-	stats, err := m.tracksvc.GetMainStats(ctx.Ctx, ctx.DBUserID)
+	stats, err := m.tracksvc.GetMainStats(ctx.Ctx, ctx.UserID)
 	if err != nil {
 		log.Error().Err(err).Msg("GetMainStats failed")
 		msg := tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to load tracking data. Please try again.")
@@ -92,7 +92,7 @@ func (m *Module) ShowTrackingMenu(ctx *tgctx.MsgContext) {
 }
 
 func (m *Module) ShowLearningMenu(ctx *tgctx.MsgContext) {
-	stats, err := m.learningsvc.GetLearningStats(ctx.Ctx, ctx.DBUserID)
+	stats, err := m.learningsvc.GetLearningStats(ctx.Ctx, ctx.UserID)
 	if err != nil {
 		log.Error().Err(err).Msg("GetLearningStats failed")
 		msg := tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to load learning data. Please try again.")
@@ -112,7 +112,7 @@ func (m *Module) ShowLearningMenu(ctx *tgctx.MsgContext) {
 }
 
 func (m *Module) ShowSubscriptionMenu(ctx *tgctx.MsgContext) {
-	stats, err := m.subscriptionsvc.GetSubscriptionStats(ctx.Ctx, ctx.DBUserID)
+	stats, err := m.subscriptionsvc.GetSubscriptionStats(ctx.Ctx, ctx.UserID)
 	if err != nil {
 		log.Error().Err(err).Msg("GetSubscriptionStats failed")
 		msg := tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to load subscription data. Please try again.")

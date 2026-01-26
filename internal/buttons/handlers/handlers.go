@@ -34,6 +34,7 @@ func (r *ReplyModule) HandleReplyButtons(ctx *tgctx.MsgContext) bool {
 		"🧠Learning":     r.handleShowLearningMenu,
 		"💳Subscription": r.handleShowSubscriptionMenu,
 	}
+
 	if handler, ok := replyButtons[ctx.Text]; ok {
 		handler(ctx)
 		return true

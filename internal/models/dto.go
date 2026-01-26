@@ -14,11 +14,11 @@ type UserInput struct {
 
 type ProfileStats struct {
 	TgUserID    int64
-	UserName    string
-	PhoneNumber string
-	Email       string
-	Language    string
-	TimeZone    string
+	UserName    *string
+	PhoneNumber *string
+	Email       *string
+	Language    *string
+	TimeZone    *string
 }
 type MainStats struct {
 	CurrentActivityName string

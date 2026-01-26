@@ -7,7 +7,7 @@ import (
 
 func LearningMenuText(stats models.LearningStats) string {
 	return fmt.Sprintf(
-		"%s\n\n%s *%s*\n%d *%d*\n%d *\n",
+		"%s\n\n%s *%s*\n%s *%d*\n%s *%d*\n%s *%d*\n%s *%s*\n",
 		LearningUIMainTitle,
 		LearningUIMainLanguage, stats.Language,
 		LearningUIMainTotalWords, stats.TotalWords,

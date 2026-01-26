@@ -37,7 +37,7 @@ func (srv *profileService) ChangeLanguage(ctx context.Context, userID int64, lan
 		return err
 	}
 
-	profile.Language = language
+	profile.Language = &language
 
 	err = srv.repo.Update(ctx, userID, profile)
 	if err != nil {
@@ -53,7 +53,7 @@ func (srv *profileService) ChangeTimeZone(ctx context.Context, userID int64, tim
 		return err
 	}
 
-	profile.TimeZone = timezone
+	profile.TimeZone = &timezone
 
 	err = srv.repo.Update(ctx, userID, profile)
 	if err != nil {

@@ -1,7 +1,7 @@
 package track
 
 import (
-	buttonbuilder "tracker-bot/internal/buttons"
+	"tracker-bot/pkg/buttonbuilder"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
