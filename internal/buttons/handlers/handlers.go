@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	router "tracker-bot/internal/handlers"
+	"tracker-bot/internal/handlers"
 	tgclient "tracker-bot/internal/utils/tgcient"
 	"tracker-bot/internal/utils/tgctx"
 
@@ -10,14 +10,14 @@ import (
 
 type ReplyModule struct {
 	bot          tgclient.TgBotAPI
-	track        *router.Module
-	subscription *router.Module
-	entry        *router.Module
-	profile      *router.Module
-	learning     *router.Module
+	track        *handlers.Module
+	subscription *handlers.Module
+	entry        *handlers.Module
+	profile      *handlers.Module
+	learning     *handlers.Module
 }
 
-func New(bot tgclient.TgBotAPI, track *router.Module, subscription *router.Module, entry *router.Module, profile *router.Module, learning *router.Module) *ReplyModule {
+func New(bot tgclient.TgBotAPI, track *handlers.Module, subscription *handlers.Module, entry *handlers.Module, profile *handlers.Module, learning *handlers.Module) *ReplyModule {
 	return &ReplyModule{
 		bot:          bot,
 		track:        track,

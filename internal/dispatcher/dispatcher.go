@@ -14,7 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	h "tracker-bot/internal/buttons/handlers"
-	router "tracker-bot/internal/handlers"
+	"tracker-bot/internal/handlers"
 	"tracker-bot/internal/utils/tgctx"
 )
 
@@ -22,11 +22,11 @@ type Dispatcher struct {
 	bot          *tgbotapi.BotAPI
 	appCtx       context.Context
 	entrysvc     service.EntryService
-	track        *router.Module
-	subscription *router.Module
-	entry        *router.Module
-	profile      *router.Module
-	learning     *router.Module
+	track        *handlers.Module
+	subscription *handlers.Module
+	entry        *handlers.Module
+	profile      *handlers.Module
+	learning     *handlers.Module
 
 	reply *h.ReplyModule
 
@@ -42,7 +42,6 @@ type Dispatcher struct {
 }
 
 const (
-	screenUnknown        = ""
 	screenHome           = "home"
 	screenTrackMain      = "track_main"
 	screenTrackManage    = "track_manage"
@@ -56,11 +55,11 @@ func New(
 	bot *tgbotapi.BotAPI,
 	appCtx context.Context,
 	entrysvc service.EntryService,
-	track *router.Module,
-	subscription *router.Module,
-	entry *router.Module,
-	profile *router.Module,
-	learning *router.Module,
+	track *handlers.Module,
+	subscription *handlers.Module,
+	entry *handlers.Module,
+	profile *handlers.Module,
+	learning *handlers.Module,
 ) *Dispatcher {
 	if bot == nil {
 		log.Fatal().Msg("Dispatcher: nil bot interfaces.BotAPI")
@@ -94,6 +93,7 @@ func New(
 	return d
 }
 
+// Run listens for Telegram updates and routes them by update type.
 func (d *Dispatcher) Run() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -111,6 +111,7 @@ func (d *Dispatcher) Run() {
 	}
 }
 
+// ensureUser creates/loads user in DB and stores DB id in context.
 func (d *Dispatcher) ensureUser(ctx *tgctx.MsgContext, chatID int64, from *tgbotapi.User) bool {
 	if from == nil {
 		return false
@@ -132,6 +133,7 @@ func (d *Dispatcher) ensureUser(ctx *tgctx.MsgContext, chatID int64, from *tgbot
 	return true
 }
 
+// newMessageContext converts Telegram message into internal context.
 func (d *Dispatcher) newMessageContext(msg *tgbotapi.Message) *tgctx.MsgContext {
 	ctx := &tgctx.MsgContext{
 		Ctx:    d.appCtx,
@@ -146,6 +148,7 @@ func (d *Dispatcher) newMessageContext(msg *tgbotapi.Message) *tgctx.MsgContext 
 	return ctx
 }
 
+// handleMessage processes incoming text/command updates.
 func (d *Dispatcher) handleMessage(msg *tgbotapi.Message) {
 	if msg == nil || msg.From == nil {
 		return
@@ -180,6 +183,7 @@ func (d *Dispatcher) handleMessage(msg *tgbotapi.Message) {
 	d.handleText(mctx)
 }
 
+// handleCallback processes incoming inline callback updates.
 func (d *Dispatcher) handleCallback(q *tgbotapi.CallbackQuery) {
 	if q == nil || q.Message == nil || q.From == nil {
 		return
@@ -212,6 +216,7 @@ func (d *Dispatcher) handleCallback(q *tgbotapi.CallbackQuery) {
 	}
 }
 
+// handleUserState handles temporary per-user states (FSM-like flow).
 func (d *Dispatcher) handleUserState(ctx *tgctx.MsgContext) bool {
 	if d.waitingActivityName[ctx.UserID] {
 		if d.isTrackButtonText(ctx.Text) {
@@ -243,6 +248,7 @@ func (d *Dispatcher) handleUserState(ctx *tgctx.MsgContext) bool {
 	return false
 }
 
+// handleCommand routes slash commands.
 func (d *Dispatcher) handleCommand(msg *tgbotapi.Message, ctx *tgctx.MsgContext) {
 	cmd := msg.Command()
 
@@ -268,76 +274,77 @@ func (d *Dispatcher) handleCommand(msg *tgbotapi.Message, ctx *tgctx.MsgContext)
 	}
 }
 
+// handleText routes plain text based on current screen and reply buttons.
 func (d *Dispatcher) handleText(ctx *tgctx.MsgContext) {
 	switch ctx.Text {
 	case trackbtn.TrackButtonActivityDelete:
-		if d.userScreen[ctx.UserID] != screenTrackManage {
+		if !d.isScreen(ctx.UserID, screenTrackManage) {
 			d.replyUseButtons(ctx.ChatID)
 			return
 		}
 		d.track.DeleteSelectedActivities(ctx)
 		return
 	case trackbtn.TrackButtonActivityActivate:
-		if d.userScreen[ctx.UserID] != screenTrackManage && d.userScreen[ctx.UserID] != screenTrackMain {
+		if !d.isScreen(ctx.UserID, screenTrackManage, screenTrackMain) {
 			d.replyUseButtons(ctx.ChatID)
 			return
 		}
-		d.userScreen[ctx.UserID] = screenTrackTimer
+		d.setScreen(ctx.UserID, screenTrackTimer)
 		d.track.ShowTrackTimerMenu(ctx)
 		return
 	case trackbtn.TrackButtonActivityArchive:
-		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.setScreen(ctx.UserID, screenTrackArchive)
 		d.track.ShowArchiveMenu(ctx)
 		return
 	case trackbtn.TrackButtonViewArchive:
-		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.setScreen(ctx.UserID, screenTrackArchive)
 		d.track.ShowArchiveMenu(ctx)
 		return
 	case trackbtn.TrackButtonToday:
-		if d.userScreen[ctx.UserID] != screenTrackReports {
+		if !d.isScreen(ctx.UserID, screenTrackReports) {
 			d.replyUseButtons(ctx.ChatID)
 			return
 		}
 		d.track.ShowTodayReport(ctx)
 		return
 	case trackbtn.TrackButtonBack:
-		if d.userScreen[ctx.UserID] == screenTrackReports {
+		if d.isScreen(ctx.UserID, screenTrackReports) {
 			d.track.ShowReportsHub(ctx, false)
 			return
 		}
 		d.replyUseButtons(ctx.ChatID)
 		return
 	case trackbtn.TrackButtonPeriod:
-		if d.userScreen[ctx.UserID] != screenTrackReports {
+		if !d.isScreen(ctx.UserID, screenTrackReports) {
 			d.replyUseButtons(ctx.ChatID)
 			return
 		}
-		d.userScreen[ctx.UserID] = screenTrackReports
+		d.setScreen(ctx.UserID, screenTrackReports)
 		d.ensurePeriodDefaults(ctx.UserID)
-		d.track.ShowPeriodMenu(ctx, d.getReportSelected(ctx.UserID), d.reportCalMonth[ctx.UserID], d.reportFrom[ctx.UserID], d.reportTo[ctx.UserID])
+		d.showPeriodMenu(ctx)
 		return
 	case trackbtn.TrackButtonSelectActivity:
-		d.userScreen[ctx.UserID] = screenTrackManage
+		d.setScreen(ctx.UserID, screenTrackManage)
 		d.track.ShowTrackActivitySelectionMenu(ctx)
 		return
 	case trackbtn.TrackButtonTimer15:
-		if d.userScreen[ctx.UserID] != screenTrackTimer {
+		if !d.isScreen(ctx.UserID, screenTrackTimer) {
 			d.replyUseButtons(ctx.ChatID)
 			return
 		}
 		d.track.ActivateTrackTimer(ctx, 15)
-		d.userScreen[ctx.UserID] = screenHome
+		d.setScreen(ctx.UserID, screenHome)
 		return
 	case trackbtn.TrackButtonTimer30:
-		if d.userScreen[ctx.UserID] != screenTrackTimer {
+		if !d.isScreen(ctx.UserID, screenTrackTimer) {
 			d.replyUseButtons(ctx.ChatID)
 			return
 		}
 		d.track.ActivateTrackTimer(ctx, 30)
-		d.userScreen[ctx.UserID] = screenHome
+		d.setScreen(ctx.UserID, screenHome)
 		return
 	case trackbtn.TrackButtonBackHome:
-		d.userScreen[ctx.UserID] = screenHome
+		d.setScreen(ctx.UserID, screenHome)
 		d.entry.ShowEntryMenu(ctx)
 		return
 	}
@@ -348,107 +355,84 @@ func (d *Dispatcher) handleText(ctx *tgctx.MsgContext) {
 	}
 }
 
+// handleTrackCallback routes track-related inline callbacks.
 func (d *Dispatcher) handleTrackCallback(ctx *tgctx.MsgContext, data string) {
 	switch {
 	case data == "noop":
 		return
 	case data == "back_to_main":
-		d.userScreen[ctx.UserID] = screenTrackMain
+		d.setScreen(ctx.UserID, screenTrackMain)
 		d.track.ShowTrackingMenu(ctx)
 	case data == trackbtn.TrackCBActivitySelect:
-		d.userScreen[ctx.UserID] = screenTrackManage
+		d.setScreen(ctx.UserID, screenTrackManage)
 		d.track.ShowTrackActivitySelectionMenu(ctx)
 	case data == trackbtn.TrackCBReportSummary, data == trackbtn.TrackCBReportsHub:
-		d.userScreen[ctx.UserID] = screenTrackReports
+		d.setScreen(ctx.UserID, screenTrackReports)
 		d.track.ShowReportsHub(ctx, true)
 	case data == trackbtn.TrackCBReportsToday:
-		d.userScreen[ctx.UserID] = screenTrackReports
+		d.setScreen(ctx.UserID, screenTrackReports)
 		d.track.ShowTodayReport(ctx)
 	case data == trackbtn.TrackCBReportsTodayBySelected:
-		d.userScreen[ctx.UserID] = screenTrackReports
+		d.setScreen(ctx.UserID, screenTrackReports)
 		d.track.ShowTodayReportBySelected(ctx)
 	case strings.HasPrefix(data, trackbtn.TrackCBReportsTodaySelToggle):
-		d.userScreen[ctx.UserID] = screenTrackReports
-		idRaw := strings.TrimPrefix(data, trackbtn.TrackCBReportsTodaySelToggle)
-		id, err := strconv.ParseInt(idRaw, 10, 64)
-		if err != nil {
+		d.setScreen(ctx.UserID, screenTrackReports)
+		id, ok := parseCallbackID(data, trackbtn.TrackCBReportsTodaySelToggle)
+		if !ok {
 			return
 		}
 		sel := d.getReportSelected(ctx.UserID)
-		sel[id] = !sel[id]
-		if !sel[id] {
-			delete(sel, id)
-		}
+		toggleSelected(sel, id)
 		d.track.ShowTodaySelectActivities(ctx, sel)
 	case data == trackbtn.TrackCBReportsTodaySelBuild:
-		d.userScreen[ctx.UserID] = screenTrackReports
+		d.setScreen(ctx.UserID, screenTrackReports)
 		ids := selectedIDs(d.getReportSelected(ctx.UserID))
 		today := time.Now().UTC()
 		from := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)
 		to := from
 		d.track.ShowPeriodChartReport(ctx, from, to, ids)
 	case data == trackbtn.TrackCBReportsPeriodOpen:
-		d.userScreen[ctx.UserID] = screenTrackReports
+		d.setScreen(ctx.UserID, screenTrackReports)
 		d.ensurePeriodDefaults(ctx.UserID)
-		d.track.ShowPeriodMenu(ctx, d.getReportSelected(ctx.UserID), d.reportCalMonth[ctx.UserID], d.reportFrom[ctx.UserID], d.reportTo[ctx.UserID])
+		d.showPeriodMenu(ctx)
 	case strings.HasPrefix(data, trackbtn.TrackCBReportsPeriodToggle):
-		d.userScreen[ctx.UserID] = screenTrackReports
-		idRaw := strings.TrimPrefix(data, trackbtn.TrackCBReportsPeriodToggle)
-		id, err := strconv.ParseInt(idRaw, 10, 64)
-		if err != nil {
+		d.setScreen(ctx.UserID, screenTrackReports)
+		id, ok := parseCallbackID(data, trackbtn.TrackCBReportsPeriodToggle)
+		if !ok {
 			return
 		}
 		sel := d.getReportSelected(ctx.UserID)
-		sel[id] = !sel[id]
-		if !sel[id] {
-			delete(sel, id)
-		}
-		d.track.ShowPeriodMenu(ctx, sel, d.reportCalMonth[ctx.UserID], d.reportFrom[ctx.UserID], d.reportTo[ctx.UserID])
+		toggleSelected(sel, id)
+		d.showPeriodMenu(ctx)
 	case data == trackbtn.TrackCBReportsPeriodSetRange:
 		if d.reportCalMonth[ctx.UserID].IsZero() {
 			d.reportCalMonth[ctx.UserID] = time.Now().UTC()
 		}
-		d.track.ShowPeriodCalendar(ctx, d.reportCalMonth[ctx.UserID], d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID])
+		d.showPeriodCalendar(ctx)
 	case data == trackbtn.TrackCBReportsCalPrev:
-		m := d.reportCalMonth[ctx.UserID]
-		if m.IsZero() {
-			m = time.Now().UTC()
-		}
-		d.reportCalMonth[ctx.UserID] = m.AddDate(0, -1, 0)
-		d.track.ShowPeriodCalendar(ctx, d.reportCalMonth[ctx.UserID], d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID])
+		d.reportCalMonth[ctx.UserID] = d.calendarMonth(ctx.UserID).AddDate(0, -1, 0)
+		d.showPeriodCalendar(ctx)
 	case data == trackbtn.TrackCBReportsCalNext:
-		m := d.reportCalMonth[ctx.UserID]
-		if m.IsZero() {
-			m = time.Now().UTC()
-		}
-		d.reportCalMonth[ctx.UserID] = m.AddDate(0, 1, 0)
-		d.track.ShowPeriodCalendar(ctx, d.reportCalMonth[ctx.UserID], d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID])
+		d.reportCalMonth[ctx.UserID] = d.calendarMonth(ctx.UserID).AddDate(0, 1, 0)
+		d.showPeriodCalendar(ctx)
 	case data == trackbtn.TrackCBReportsCalPrevYear:
-		m := d.reportCalMonth[ctx.UserID]
-		if m.IsZero() {
-			m = time.Now().UTC()
-		}
-		d.reportCalMonth[ctx.UserID] = m.AddDate(-1, 0, 0)
-		d.track.ShowPeriodCalendar(ctx, d.reportCalMonth[ctx.UserID], d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID])
+		d.reportCalMonth[ctx.UserID] = d.calendarMonth(ctx.UserID).AddDate(-1, 0, 0)
+		d.showPeriodCalendar(ctx)
 	case data == trackbtn.TrackCBReportsCalNextYear:
-		m := d.reportCalMonth[ctx.UserID]
-		if m.IsZero() {
-			m = time.Now().UTC()
-		}
-		d.reportCalMonth[ctx.UserID] = m.AddDate(1, 0, 0)
-		d.track.ShowPeriodCalendar(ctx, d.reportCalMonth[ctx.UserID], d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID])
+		d.reportCalMonth[ctx.UserID] = d.calendarMonth(ctx.UserID).AddDate(1, 0, 0)
+		d.showPeriodCalendar(ctx)
 	case data == trackbtn.TrackCBReportsCalThisMonth:
 		now := time.Now().UTC()
 		d.reportCalMonth[ctx.UserID] = now
 		d.reportCalFrom[ctx.UserID] = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 		d.reportCalTo[ctx.UserID] = time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, time.UTC)
-		d.track.ShowPeriodCalendar(ctx, d.reportCalMonth[ctx.UserID], d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID])
+		d.showPeriodCalendar(ctx)
 	case data == trackbtn.TrackCBReportsCalThisYear:
 		now := time.Now().UTC()
 		d.reportCalMonth[ctx.UserID] = now
 		d.reportCalFrom[ctx.UserID] = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
 		d.reportCalTo[ctx.UserID] = time.Date(now.Year(), 12, 31, 0, 0, 0, 0, time.UTC)
-		d.track.ShowPeriodCalendar(ctx, d.reportCalMonth[ctx.UserID], d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID])
+		d.showPeriodCalendar(ctx)
 	case strings.HasPrefix(data, trackbtn.TrackCBReportsCalPick):
 		raw := strings.TrimPrefix(data, trackbtn.TrackCBReportsCalPick)
 		day, err := time.Parse("2006-01-02", raw)
@@ -464,7 +448,7 @@ func (d *Dispatcher) handleTrackCallback(ctx *tgctx.MsgContext, data string) {
 				d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID] = d.reportCalTo[ctx.UserID], d.reportCalFrom[ctx.UserID]
 			}
 		}
-		d.track.ShowPeriodCalendar(ctx, d.reportCalMonth[ctx.UserID], d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID])
+		d.showPeriodCalendar(ctx)
 	case data == trackbtn.TrackCBReportsCalDone:
 		if d.reportCalFrom[ctx.UserID].IsZero() || d.reportCalTo[ctx.UserID].IsZero() {
 			_, _ = d.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "Pick FROM and TO days."))
@@ -472,46 +456,46 @@ func (d *Dispatcher) handleTrackCallback(ctx *tgctx.MsgContext, data string) {
 		}
 		d.reportFrom[ctx.UserID] = d.reportCalFrom[ctx.UserID]
 		d.reportTo[ctx.UserID] = d.reportCalTo[ctx.UserID]
-		d.track.ShowPeriodMenu(ctx, d.getReportSelected(ctx.UserID), d.reportCalMonth[ctx.UserID], d.reportFrom[ctx.UserID], d.reportTo[ctx.UserID])
+		d.showPeriodMenu(ctx)
 	case data == trackbtn.TrackCBReportsCalCancel:
-		d.track.ShowPeriodMenu(ctx, d.getReportSelected(ctx.UserID), d.reportCalMonth[ctx.UserID], d.reportFrom[ctx.UserID], d.reportTo[ctx.UserID])
+		d.showPeriodMenu(ctx)
 	case data == trackbtn.TrackCBReportsPeriodText:
-		d.userScreen[ctx.UserID] = screenTrackReports
+		d.setScreen(ctx.UserID, screenTrackReports)
 		ids := selectedIDs(d.getReportSelected(ctx.UserID))
 		d.track.ShowPeriodTextReport(ctx, d.reportFrom[ctx.UserID], d.reportTo[ctx.UserID], ids, true)
 	case data == trackbtn.TrackCBReportsPeriodChart:
-		d.userScreen[ctx.UserID] = screenTrackReports
+		d.setScreen(ctx.UserID, screenTrackReports)
 		ids := selectedIDs(d.getReportSelected(ctx.UserID))
 		d.track.ShowPeriodChartReport(ctx, d.reportFrom[ctx.UserID], d.reportTo[ctx.UserID], ids)
 	case data == trackbtn.TrackCBReportsBackHub:
-		d.userScreen[ctx.UserID] = screenTrackReports
+		d.setScreen(ctx.UserID, screenTrackReports)
 		d.track.ShowReportsHub(ctx, true)
 	case data == trackbtn.TrackCBActivityCreate:
 		d.waitingActivityName[ctx.UserID] = true
-		d.userScreen[ctx.UserID] = screenCreateActivity
+		d.setScreen(ctx.UserID, screenCreateActivity)
 		d.track.PromptCreateActivity(ctx)
 	case data == trackbtn.TrackCBArchiveOpen:
-		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.setScreen(ctx.UserID, screenTrackArchive)
 		d.track.ShowArchiveMenu(ctx)
 	case data == trackbtn.TrackCBOpenArchive:
-		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.setScreen(ctx.UserID, screenTrackArchive)
 		d.track.ShowArchiveMenuInPlace(ctx)
 	case data == trackbtn.TrackCBOpenActivities:
-		d.userScreen[ctx.UserID] = screenTrackManage
+		d.setScreen(ctx.UserID, screenTrackManage)
 		d.track.ShowTrackActivitySelectionMenuInPlace(ctx)
 	case data == trackbtn.TrackCBCreateAnother:
 		d.waitingActivityName[ctx.UserID] = true
-		d.userScreen[ctx.UserID] = screenCreateActivity
+		d.setScreen(ctx.UserID, screenCreateActivity)
 		d.track.PromptCreateActivity(ctx)
 	case data == trackbtn.TrackCBArchiveSelected:
-		if d.userScreen[ctx.UserID] != screenTrackManage {
+		if !d.isScreen(ctx.UserID, screenTrackManage) {
 			d.closeInlineMenu(ctx, "Activities menu is closed. Open Activities again from Track.")
 			return
 		}
-		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.setScreen(ctx.UserID, screenTrackArchive)
 		d.track.ArchiveSelectedActivitiesInPlace(ctx)
 	case data == trackbtn.TrackCBArchiveToActive:
-		d.userScreen[ctx.UserID] = screenTrackManage
+		d.setScreen(ctx.UserID, screenTrackManage)
 		d.track.ShowTrackActivitySelectionMenuInPlace(ctx)
 	case data == trackbtn.TrackCBPromptStopTimer:
 		d.track.StopTrackTimer(ctx)
@@ -522,7 +506,7 @@ func (d *Dispatcher) handleTrackCallback(ctx *tgctx.MsgContext, data string) {
 	case strings.HasPrefix(data, trackbtn.TrackCBArchiveDelete):
 		d.track.DeleteArchivedForever(ctx)
 	case strings.HasPrefix(data, "act_toggle_:"):
-		if d.userScreen[ctx.UserID] != screenTrackManage {
+		if !d.isScreen(ctx.UserID, screenTrackManage) {
 			d.closeInlineMenu(ctx, "Activities menu is closed. Open Activities again from Track.")
 			return
 		}
@@ -530,10 +514,12 @@ func (d *Dispatcher) handleTrackCallback(ctx *tgctx.MsgContext, data string) {
 	}
 }
 
+// replyUseButtons sends a guard message when user is out of current flow.
 func (d *Dispatcher) replyUseButtons(chatID int64) {
 	_, _ = d.bot.Send(tgbotapi.NewMessage(chatID, "Use buttons from menu."))
 }
 
+// isTrackButtonText checks if text belongs to track reply buttons.
 func (d *Dispatcher) isTrackButtonText(text string) bool {
 	switch text {
 	case trackbtn.TrackButtonActivityActivate,
@@ -550,6 +536,7 @@ func (d *Dispatcher) isTrackButtonText(text string) bool {
 	}
 }
 
+// ensurePeriodDefaults sets initial period report dates for user.
 func (d *Dispatcher) ensurePeriodDefaults(userID int64) {
 	if _, ok := d.reportFrom[userID]; !ok {
 		d.reportFrom[userID] = time.Now().UTC().AddDate(0, 0, -30)
@@ -560,6 +547,42 @@ func (d *Dispatcher) ensurePeriodDefaults(userID int64) {
 	d.getReportSelected(userID)
 }
 
+// setScreen stores current UI screen for user.
+func (d *Dispatcher) setScreen(userID int64, screen string) {
+	d.userScreen[userID] = screen
+}
+
+// isScreen checks whether current screen is one of allowed values.
+func (d *Dispatcher) isScreen(userID int64, allowed ...string) bool {
+	current := d.userScreen[userID]
+	for _, s := range allowed {
+		if current == s {
+			return true
+		}
+	}
+	return false
+}
+
+// calendarMonth returns current calendar month or now if empty.
+func (d *Dispatcher) calendarMonth(userID int64) time.Time {
+	m := d.reportCalMonth[userID]
+	if m.IsZero() {
+		return time.Now().UTC()
+	}
+	return m
+}
+
+// showPeriodMenu redraws period report menu.
+func (d *Dispatcher) showPeriodMenu(ctx *tgctx.MsgContext) {
+	d.track.ShowPeriodMenu(ctx, d.getReportSelected(ctx.UserID), d.reportCalMonth[ctx.UserID], d.reportFrom[ctx.UserID], d.reportTo[ctx.UserID])
+}
+
+// showPeriodCalendar redraws period calendar view.
+func (d *Dispatcher) showPeriodCalendar(ctx *tgctx.MsgContext) {
+	d.track.ShowPeriodCalendar(ctx, d.reportCalMonth[ctx.UserID], d.reportCalFrom[ctx.UserID], d.reportCalTo[ctx.UserID])
+}
+
+// getReportSelected returns selected activity map for user.
 func (d *Dispatcher) getReportSelected(userID int64) map[int64]bool {
 	if _, ok := d.reportSelected[userID]; !ok {
 		d.reportSelected[userID] = make(map[int64]bool)
@@ -567,6 +590,7 @@ func (d *Dispatcher) getReportSelected(userID int64) map[int64]bool {
 	return d.reportSelected[userID]
 }
 
+// parseDateRange parses "YYYY-MM-DD..YYYY-MM-DD".
 func parseDateRange(s string) (time.Time, time.Time, error) {
 	parts := strings.Split(strings.TrimSpace(s), "..")
 	if len(parts) != 2 {
@@ -586,6 +610,7 @@ func parseDateRange(s string) (time.Time, time.Time, error) {
 	return from, to, nil
 }
 
+// selectedIDs converts selected map to slice of ids.
 func selectedIDs(m map[int64]bool) []int64 {
 	out := make([]int64, 0, len(m))
 	for id, ok := range m {
@@ -596,12 +621,32 @@ func selectedIDs(m map[int64]bool) []int64 {
 	return out
 }
 
+// toggleSelected toggles selected state for one id.
+func toggleSelected(m map[int64]bool, id int64) {
+	m[id] = !m[id]
+	if !m[id] {
+		delete(m, id)
+	}
+}
+
+// parseCallbackID extracts int64 id from callback by prefix.
+func parseCallbackID(data, prefix string) (int64, bool) {
+	idRaw := strings.TrimPrefix(data, prefix)
+	id, err := strconv.ParseInt(idRaw, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return id, true
+}
+
+// sameDay checks whether two dates are the same day.
 func sameDay(a, b time.Time) bool {
 	ay, am, ad := a.Date()
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd
 }
 
+// closeInlineMenu clears inline keyboard and replaces message text.
 func (d *Dispatcher) closeInlineMenu(ctx *tgctx.MsgContext, text string) {
 	if ctx.MessageID <= 0 {
 		return

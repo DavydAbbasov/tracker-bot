@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"tracker-bot/internal/config"
 	"tracker-bot/internal/dispatcher"
-	router "tracker-bot/internal/handlers"
+	"tracker-bot/internal/handlers"
 	"tracker-bot/internal/repo"
 	"tracker-bot/internal/scheduler"
 	"tracker-bot/internal/service"
@@ -16,24 +16,24 @@ import (
 )
 
 type Application struct {
-	cfg        *config.Config
-	db         *pgclient.PostgreDB
-	repo       *repo.TrackerRepository
-	service    *service.EntryService
-	bot        *tgbotapi.BotAPI
-	dispatcher *dispatcher.Dispatcher
+	cfg            *config.Config
+	db             *pgclient.PostgreDB
+	bot            *tgbotapi.BotAPI
+	dispatcher     *dispatcher.Dispatcher
+	timerScheduler *scheduler.TimerScheduler
 }
 
-func NewApplication() *Application {
-	return &Application{}
+func NewApplication(cfg *config.Config) *Application {
+	return &Application{cfg: cfg}
 }
-func (app *Application) Start(ctx context.Context) error {
-	if err := app.initConfig(); err != nil {
-		return fmt.Errorf("init config: %w", err)
+
+// Build wires repositories, services, handlers and schedulers.
+func (app *Application) Build(ctx context.Context) error {
+	if app.cfg == nil {
+		return fmt.Errorf("build application: nil config")
 	}
 
-	dsn := app.cfg.PostgresDSN()
-	db, err := pgclient.NewPgProvider(ctx, dsn)
+	db, err := pgclient.NewPgProvider(ctx, app.cfg.PostgresDSN())
 	if err != nil {
 		return fmt.Errorf("init pg client: %w", err)
 	}
@@ -43,6 +43,7 @@ func (app *Application) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("init telegram bot: %w", err)
 	}
+	bot.Debug = app.cfg.Telegram.TelegramBotDebug
 	app.bot = bot
 
 	entryRepo := repo.NewEntryRepository(app.db.Pool())
@@ -60,22 +61,19 @@ func (app *Application) Start(ctx context.Context) error {
 	learningsvc := service.NewLearningService(learningRepo)
 	subscriptionsvc := service.NewSubscriptionService(subscriptionRepo)
 
-	module := router.New(app.bot, entrysvc, provilesvc, tracksvc, timersvc, learningsvc, subscriptionsvc, app.cfg.TestTimerMinutes)
+	module := handlers.New(app.bot, entrysvc, provilesvc, tracksvc, timersvc, learningsvc, subscriptionsvc, app.cfg.TestTimerMinutes)
 	app.dispatcher = dispatcher.New(app.bot, ctx, entrysvc, module, module, module, module, module)
-	timerScheduler := scheduler.NewTimerScheduler(ctx, timersvc, module)
-	timerScheduler.Run()
-
-	app.dispatcher.Run()
-	fmt.Println("dispatcher running")
+	app.timerScheduler = scheduler.NewTimerScheduler(ctx, timersvc, module)
 
 	return nil
 }
-func (a *Application) initConfig() error {
-	cfg, err := config.ParseConfig()
-	if err != nil {
-		return err
-	}
 
-	a.cfg = cfg
+// Run starts background jobs and blocks on dispatcher loop.
+func (app *Application) Run() error {
+	if app.dispatcher == nil || app.timerScheduler == nil {
+		return fmt.Errorf("run application: app is not built")
+	}
+	app.timerScheduler.Run()
+	app.dispatcher.Run()
 	return nil
 }

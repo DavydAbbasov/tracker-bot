@@ -3,7 +3,7 @@ package scheduler
 import (
 	"context"
 	"time"
-	router "tracker-bot/internal/handlers"
+	"tracker-bot/internal/handlers"
 	"tracker-bot/internal/service"
 
 	"github.com/rs/zerolog/log"
@@ -12,10 +12,10 @@ import (
 type TimerScheduler struct {
 	ctx      context.Context
 	timersvc service.TimerService
-	track    *router.Module
+	track    *handlers.Module
 }
 
-func NewTimerScheduler(ctx context.Context, timersvc service.TimerService, track *router.Module) *TimerScheduler {
+func NewTimerScheduler(ctx context.Context, timersvc service.TimerService, track *handlers.Module) *TimerScheduler {
 	return &TimerScheduler{
 		ctx:      ctx,
 		timersvc: timersvc,

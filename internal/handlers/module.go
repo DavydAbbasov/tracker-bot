@@ -36,6 +36,7 @@ type Module struct {
 	testTimerMin    int
 }
 
+// New creates handler module with all service dependencies.
 func New(bot *tgbotapi.BotAPI, entrysvc service.EntryService, profilesvc service.ProfileService, tracksvc service.TrackerService, timersvc service.TimerService, learningsvc service.LearningService, subscriptionsvc service.SubscriptionService, testTimerMin int) *Module {
 	return &Module{
 		bot:             bot,
@@ -49,6 +50,7 @@ func New(bot *tgbotapi.BotAPI, entrysvc service.EntryService, profilesvc service
 	}
 }
 
+// ShowEntryMenu renders the main entry reply keyboard.
 func (m *Module) ShowEntryMenu(ctx *tgctx.MsgContext) {
 	text := entry.EntryMenuText()
 
@@ -61,6 +63,7 @@ func (m *Module) ShowEntryMenu(ctx *tgctx.MsgContext) {
 	}
 }
 
+// ShowProfileMenu loads profile stats and renders profile screen.
 func (m *Module) ShowProfileMenu(ctx *tgctx.MsgContext) {
 	stats, err := m.profilesvc.GetProfileStats(ctx.Ctx, ctx.UserID)
 	if err != nil {
@@ -80,6 +83,7 @@ func (m *Module) ShowProfileMenu(ctx *tgctx.MsgContext) {
 	}
 }
 
+// ShowTrackingMenu loads tracking stats and renders tracking home screen.
 func (m *Module) ShowTrackingMenu(ctx *tgctx.MsgContext) {
 	stats, err := m.tracksvc.GetMainStats(ctx.Ctx, ctx.UserID)
 	if err != nil {
@@ -100,6 +104,7 @@ func (m *Module) ShowTrackingMenu(ctx *tgctx.MsgContext) {
 	}
 }
 
+// ShowReportsHub renders report type selector.
 func (m *Module) ShowReportsHub(ctx *tgctx.MsgContext, inPlace bool) {
 	text := "📈 Reports\n\nChoose a report type:"
 	msgReply := tgbotapi.NewMessage(ctx.ChatID, "📈")
@@ -114,6 +119,7 @@ func (m *Module) ShowReportsHub(ctx *tgctx.MsgContext, inPlace bool) {
 	_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, text))
 }
 
+// ShowTodayChart renders today's activity distribution as text bars.
 func (m *Module) ShowTodayChart(ctx *tgctx.MsgContext) {
 	stats, err := m.tracksvc.GetTodayReport(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -157,6 +163,7 @@ func (m *Module) ShowTodayChart(ctx *tgctx.MsgContext) {
 	_, _ = m.bot.Send(msg)
 }
 
+// ShowPeriodMenu renders period report configuration screen.
 func (m *Module) ShowPeriodMenu(ctx *tgctx.MsgContext, selected map[int64]bool, month, from, to time.Time) {
 	items, err := m.tracksvc.ListActivities(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -183,6 +190,7 @@ func (m *Module) ShowPeriodMenu(ctx *tgctx.MsgContext, selected map[int64]bool, 
 	_, _ = m.bot.Send(msg)
 }
 
+// ShowPeriodTextReport builds and sends period report in text form.
 func (m *Module) ShowPeriodTextReport(ctx *tgctx.MsgContext, from, to time.Time, activityIDs []int64, selectedOnly bool) {
 	stats, err := m.tracksvc.GetPeriodReport(ctx.Ctx, ctx.DBUserID, from, to.Add(24*time.Hour), activityIDs)
 	if err != nil {
@@ -214,6 +222,7 @@ func (m *Module) ShowPeriodTextReport(ctx *tgctx.MsgContext, from, to time.Time,
 	_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, b.String()))
 }
 
+// ShowPeriodChartReport builds and sends period report in chart-like form.
 func (m *Module) ShowPeriodChartReport(ctx *tgctx.MsgContext, from, to time.Time, activityIDs []int64) {
 	stats, err := m.tracksvc.GetPeriodReport(ctx.Ctx, ctx.DBUserID, from, to.Add(24*time.Hour), activityIDs)
 	if err != nil {
@@ -249,6 +258,7 @@ func (m *Module) ShowPeriodChartReport(ctx *tgctx.MsgContext, from, to time.Time
 	_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, b.String()))
 }
 
+// ShowPeriodCalendar renders inline calendar for period selection.
 func (m *Module) ShowPeriodCalendar(ctx *tgctx.MsgContext, month, from, to time.Time) {
 	text := fmt.Sprintf("📅 Pick period days\nFrom: %s\nTo: %s", formatDateOrDash(from), formatDateOrDash(to))
 	edit := tgbotapi.NewEditMessageTextAndMarkup(
@@ -260,6 +270,7 @@ func (m *Module) ShowPeriodCalendar(ctx *tgctx.MsgContext, month, from, to time.
 	_, _ = m.bot.Send(edit)
 }
 
+// appendGranularityText appends bucketed totals (hour/day/month) to report.
 func (m *Module) appendGranularityText(ctx *tgctx.MsgContext, b *strings.Builder, from, to time.Time, activityIDs []int64) {
 	if len(activityIDs) == 0 {
 		return
@@ -294,14 +305,17 @@ func (m *Module) appendGranularityText(ctx *tgctx.MsgContext, b *strings.Builder
 	}
 }
 
+// ShowTodayReport is an alias to chart-style today report.
 func (m *Module) ShowTodayReport(ctx *tgctx.MsgContext) {
 	m.ShowTodayChart(ctx)
 }
 
+// ShowTodayReportBySelected opens selected-activities screen for today report.
 func (m *Module) ShowTodayReportBySelected(ctx *tgctx.MsgContext) {
 	m.ShowTodaySelectActivities(ctx, map[int64]bool{})
 }
 
+// ShowTodaySelectActivities renders multi-select activities for today chart.
 func (m *Module) ShowTodaySelectActivities(ctx *tgctx.MsgContext, selected map[int64]bool) {
 	items, err := m.tracksvc.ListActivities(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -368,6 +382,7 @@ func (m *Module) renderTodayReport(ctx *tgctx.MsgContext, stats models.ReportTod
 	_, _ = m.bot.Send(msg)
 }
 
+// PromptCreateActivity asks user to type a new activity name.
 func (m *Module) PromptCreateActivity(ctx *tgctx.MsgContext) {
 	text := "📌 *Create New Activity*\n\nEnter activity name:"
 	msg := tgbotapi.NewMessage(ctx.ChatID, text)
@@ -379,6 +394,7 @@ func (m *Module) PromptCreateActivity(ctx *tgctx.MsgContext) {
 	}
 }
 
+// ProcessCreateActivity validates and creates activity from plain text input.
 func (m *Module) ProcessCreateActivity(ctx *tgctx.MsgContext) bool {
 	name := strings.TrimSpace(ctx.Text)
 	if name == "" {
@@ -404,6 +420,7 @@ func (m *Module) ProcessCreateActivity(ctx *tgctx.MsgContext) bool {
 	return true
 }
 
+// ShowTrackActivitySelectionMenu renders active activities and selection state.
 func (m *Module) ShowTrackActivitySelectionMenu(ctx *tgctx.MsgContext) {
 	items, err := m.tracksvc.ListActivities(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -419,12 +436,7 @@ func (m *Module) ShowTrackActivitySelectionMenu(ctx *tgctx.MsgContext) {
 		return
 	}
 
-	selectedCount := 0
-	for _, item := range items {
-		if item.Selected {
-			selectedCount++
-		}
-	}
+	selectedCount := countSelectedActivities(items)
 
 	msgReply := tgbotapi.NewMessage(ctx.ChatID, "🗂")
 	msgReply.ReplyMarkup = track.TrackActivityManageReplyMenu()
@@ -436,6 +448,7 @@ func (m *Module) ShowTrackActivitySelectionMenu(ctx *tgctx.MsgContext) {
 	_, _ = m.bot.Send(msg)
 }
 
+// HandleTrackToggleCallback toggles one activity in selected set.
 func (m *Module) HandleTrackToggleCallback(ctx *tgctx.MsgContext) {
 	payload := strings.TrimPrefix(ctx.Text, "act_toggle_:")
 	activityID, err := strconv.ParseInt(payload, 10, 64)
@@ -457,12 +470,7 @@ func (m *Module) HandleTrackToggleCallback(ctx *tgctx.MsgContext) {
 		return
 	}
 
-	selectedCount := 0
-	for _, item := range items {
-		if item.Selected {
-			selectedCount++
-		}
-	}
+	selectedCount := countSelectedActivities(items)
 
 	edit := tgbotapi.NewEditMessageTextAndMarkup(
 		ctx.ChatID,
@@ -476,6 +484,7 @@ func (m *Module) HandleTrackToggleCallback(ctx *tgctx.MsgContext) {
 	}
 }
 
+// DeleteSelectedActivities removes all currently selected activities.
 func (m *Module) DeleteSelectedActivities(ctx *tgctx.MsgContext) {
 	deleted, err := m.tracksvc.DeleteSelectedActivities(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -488,6 +497,7 @@ func (m *Module) DeleteSelectedActivities(ctx *tgctx.MsgContext) {
 	m.ShowTrackActivitySelectionMenu(ctx)
 }
 
+// ArchiveSelectedActivities moves selected activities to archive.
 func (m *Module) ArchiveSelectedActivities(ctx *tgctx.MsgContext) {
 	archived, err := m.tracksvc.ArchiveSelectedActivities(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -508,6 +518,7 @@ func (m *Module) ArchiveSelectedActivities(ctx *tgctx.MsgContext) {
 	_, _ = m.bot.Send(msg)
 }
 
+// ArchiveSelectedActivitiesInPlace archives selected activities and edits current message.
 func (m *Module) ArchiveSelectedActivitiesInPlace(ctx *tgctx.MsgContext) {
 	archived, err := m.tracksvc.ArchiveSelectedActivities(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -537,14 +548,17 @@ func (m *Module) ArchiveSelectedActivitiesInPlace(ctx *tgctx.MsgContext) {
 	_, _ = m.bot.Send(edit)
 }
 
+// ShowArchiveMenu opens archive as a new message.
 func (m *Module) ShowArchiveMenu(ctx *tgctx.MsgContext) {
 	m.renderArchiveMenu(ctx, false)
 }
 
+// ShowArchiveMenuInPlace opens archive by editing current message.
 func (m *Module) ShowArchiveMenuInPlace(ctx *tgctx.MsgContext) {
 	m.renderArchiveMenu(ctx, true)
 }
 
+// renderArchiveMenu renders archived activities list in normal or in-place mode.
 func (m *Module) renderArchiveMenu(ctx *tgctx.MsgContext, edit bool) {
 	items, err := m.tracksvc.ListArchivedActivities(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -593,6 +607,7 @@ func (m *Module) renderArchiveMenu(ctx *tgctx.MsgContext, edit bool) {
 	_, _ = m.bot.Send(msg)
 }
 
+// ShowTrackActivitySelectionMenuInPlace edits current message with activities list.
 func (m *Module) ShowTrackActivitySelectionMenuInPlace(ctx *tgctx.MsgContext) {
 	msgReply := tgbotapi.NewMessage(ctx.ChatID, "🗂")
 	msgReply.ReplyMarkup = track.TrackActivityManageReplyMenu()
@@ -612,12 +627,7 @@ func (m *Module) ShowTrackActivitySelectionMenuInPlace(ctx *tgctx.MsgContext) {
 		return
 	}
 
-	selectedCount := 0
-	for _, item := range items {
-		if item.Selected {
-			selectedCount++
-		}
-	}
+	selectedCount := countSelectedActivities(items)
 
 	edit := tgbotapi.NewEditMessageTextAndMarkup(
 		ctx.ChatID,
@@ -629,6 +639,7 @@ func (m *Module) ShowTrackActivitySelectionMenuInPlace(ctx *tgctx.MsgContext) {
 	_, _ = m.bot.Send(edit)
 }
 
+// RestoreArchivedActivity restores one activity from archive to active list.
 func (m *Module) RestoreArchivedActivity(ctx *tgctx.MsgContext) {
 	idRaw := strings.TrimPrefix(ctx.Text, track.TrackCBArchiveRestore)
 	activityID, err := strconv.ParseInt(idRaw, 10, 64)
@@ -648,6 +659,7 @@ func (m *Module) RestoreArchivedActivity(ctx *tgctx.MsgContext) {
 	m.ShowArchiveMenuInPlace(ctx)
 }
 
+// DeleteArchivedForever permanently removes one archived activity.
 func (m *Module) DeleteArchivedForever(ctx *tgctx.MsgContext) {
 	idRaw := strings.TrimPrefix(ctx.Text, track.TrackCBArchiveDelete)
 	activityID, err := strconv.ParseInt(idRaw, 10, 64)
@@ -667,6 +679,7 @@ func (m *Module) DeleteArchivedForever(ctx *tgctx.MsgContext) {
 	m.ShowArchiveMenuInPlace(ctx)
 }
 
+// findArchivedActivityName resolves archived activity label for confirmations.
 func (m *Module) findArchivedActivityName(ctx *tgctx.MsgContext, activityID int64) string {
 	items, err := m.tracksvc.ListArchivedActivities(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -674,21 +687,20 @@ func (m *Module) findArchivedActivityName(ctx *tgctx.MsgContext, activityID int6
 	}
 	for _, item := range items {
 		if item.ID == activityID {
-			if item.Emoji != "" {
-				return item.Emoji + " " + item.Name
-			}
-			return item.Name
+			return activityDisplayName(item)
 		}
 	}
 	return fmt.Sprintf("#%d", activityID)
 }
 
+// ShowTrackTimerMenu renders timer interval selector.
 func (m *Module) ShowTrackTimerMenu(ctx *tgctx.MsgContext) {
 	msg := tgbotapi.NewMessage(ctx.ChatID, "Select tracking interval:")
 	msg.ReplyMarkup = track.TrackTimerReplyMenu()
 	_, _ = m.bot.Send(msg)
 }
 
+// ActivateTrackTimer enables periodic prompts for selected activities.
 func (m *Module) ActivateTrackTimer(ctx *tgctx.MsgContext, intervalMin int) {
 	if m.testTimerMin > 0 {
 		intervalMin = m.testTimerMin
@@ -718,6 +730,7 @@ func (m *Module) ActivateTrackTimer(ctx *tgctx.MsgContext, intervalMin int) {
 	m.ShowEntryMenu(ctx)
 }
 
+// StopTrackTimer disables active tracking timer.
 func (m *Module) StopTrackTimer(ctx *tgctx.MsgContext) {
 	if err := m.timersvc.Stop(ctx.Ctx, ctx.DBUserID); err != nil {
 		log.Error().Err(err).Msg("stop timer failed")
@@ -727,6 +740,7 @@ func (m *Module) StopTrackTimer(ctx *tgctx.MsgContext) {
 	_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "⏹ Timer stopped"))
 }
 
+// SendPromptMessage sends periodic "what are you doing now?" prompt.
 func (m *Module) SendPromptMessage(ctx context.Context, chatID int64, userID int64, intervalMin int) error {
 	items, err := m.tracksvc.ListSelectedActivities(ctx, userID)
 	if err != nil {
@@ -742,6 +756,7 @@ func (m *Module) SendPromptMessage(ctx context.Context, chatID int64, userID int
 	return err
 }
 
+// RecordPromptAnswer stores one prompt response as tracked time interval.
 func (m *Module) RecordPromptAnswer(ctx *tgctx.MsgContext) {
 	payload := strings.TrimPrefix(ctx.Text, track.TrackCBPromptActivity)
 	parts := strings.Split(payload, ":")
@@ -787,6 +802,7 @@ func (m *Module) RecordPromptAnswer(ctx *tgctx.MsgContext) {
 	_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, text))
 }
 
+// findActivityName resolves active activity label for confirmations.
 func (m *Module) findActivityName(ctx *tgctx.MsgContext, activityID int64) string {
 	items, err := m.tracksvc.ListActivities(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
@@ -794,15 +810,13 @@ func (m *Module) findActivityName(ctx *tgctx.MsgContext, activityID int64) strin
 	}
 	for _, item := range items {
 		if item.ID == activityID {
-			if item.Emoji != "" {
-				return item.Emoji + " " + item.Name
-			}
-			return item.Name
+			return activityDisplayName(item)
 		}
 	}
 	return fmt.Sprintf("#%d", activityID)
 }
 
+// formatReportDuration formats duration as "Xh Ym".
 func formatReportDuration(d time.Duration) string {
 	if d < 0 {
 		d = 0
@@ -819,6 +833,7 @@ func formatReportDuration(d time.Duration) string {
 	}
 }
 
+// formatDateOrDash returns date in YYYY-MM-DD or dash for empty time.
 func formatDateOrDash(t time.Time) string {
 	if t.IsZero() {
 		return "—"
@@ -826,6 +841,7 @@ func formatDateOrDash(t time.Time) string {
 	return t.Format("2006-01-02")
 }
 
+// percentOf returns percentage string for part/total durations.
 func percentOf(part, total time.Duration) string {
 	if total <= 0 || part <= 0 {
 		return "0%"
@@ -834,6 +850,7 @@ func percentOf(part, total time.Duration) string {
 	return fmt.Sprintf("%.1f%%", p)
 }
 
+// ShowLearningMenu loads learning stats and renders learning screen.
 func (m *Module) ShowLearningMenu(ctx *tgctx.MsgContext) {
 	stats, err := m.learningsvc.GetLearningStats(ctx.Ctx, ctx.UserID)
 	if err != nil {
@@ -854,6 +871,7 @@ func (m *Module) ShowLearningMenu(ctx *tgctx.MsgContext) {
 	}
 }
 
+// ShowSubscriptionMenu loads subscription stats and renders subscription screen.
 func (m *Module) ShowSubscriptionMenu(ctx *tgctx.MsgContext) {
 	stats, err := m.subscriptionsvc.GetSubscriptionStats(ctx.Ctx, ctx.UserID)
 	if err != nil {
@@ -872,4 +890,21 @@ func (m *Module) ShowSubscriptionMenu(ctx *tgctx.MsgContext) {
 	if _, err := m.bot.Send(msg); err != nil {
 		log.Error().Err(err).Msg("send subscription menu failed")
 	}
+}
+
+func activityDisplayName(item models.TrackActivityItem) string {
+	if item.Emoji != "" {
+		return item.Emoji + " " + item.Name
+	}
+	return item.Name
+}
+
+func countSelectedActivities(items []models.TrackActivityItem) int {
+	count := 0
+	for _, item := range items {
+		if item.Selected {
+			count++
+		}
+	}
+	return count
 }
