@@ -31,6 +31,12 @@ type TrackerRepository interface {
 	ArchiveSelected(ctx context.Context, userID int64) (int64, error)
 	RestoreArchived(ctx context.Context, userID, activityID int64) error
 	DeleteArchivedForever(ctx context.Context, userID, activityID int64) error
+	GetTodayStats(ctx context.Context, userID int64) (time.Duration, int, error)
+	GetTodayActivities(ctx context.Context, userID int64) ([]Activity, []time.Duration, []int, error)
+	GetPeriodActivities(ctx context.Context, userID int64, from, to time.Time, activityIDs []int64) ([]Activity, []time.Duration, []int, time.Duration, int, error)
+	GetPeriodMonthlyTotals(ctx context.Context, userID int64, from, to time.Time, activityIDs []int64) ([]time.Time, []time.Duration, error)
+	GetMonthDailyTotals(ctx context.Context, userID int64, month time.Time, activityIDs []int64) (map[int]time.Duration, error)
+	GetPeriodBuckets(ctx context.Context, userID int64, from, to time.Time, activityIDs []int64, granularity string) ([]time.Time, []time.Duration, error)
 }
 type trackRepository struct {
 	db *pgxpool.Pool
@@ -320,4 +326,258 @@ func (r *trackRepository) DeleteArchivedForever(ctx context.Context, userID, act
 		return errlocal.ErrActivityNotFound
 	}
 	return nil
+}
+
+func (r *trackRepository) GetTodayStats(ctx context.Context, userID int64) (time.Duration, int, error) {
+	if userID <= 0 {
+		return 0, 0, fmt.Errorf("today stats: invalid userID")
+	}
+	q := `
+	SELECT
+		COALESCE(SUM(end_at - start_at), interval '0'),
+		COUNT(*)
+	FROM activity_sessions
+	WHERE user_id = $1
+	  AND end_at IS NOT NULL
+	  AND start_at >= date_trunc('day', now())
+	  AND start_at < date_trunc('day', now()) + interval '1 day';
+	`
+	var total time.Duration
+	var sessions int
+	if err := r.db.QueryRow(ctx, q, userID).Scan(&total, &sessions); err != nil {
+		return 0, 0, fmt.Errorf("today stats query: %w", err)
+	}
+	return total, sessions, nil
+}
+
+func (r *trackRepository) GetTodayActivities(ctx context.Context, userID int64) ([]Activity, []time.Duration, []int, error) {
+	if userID <= 0 {
+		return nil, nil, nil, fmt.Errorf("today activities: invalid userID")
+	}
+	q := `
+	SELECT
+		a.id, a.user_id, a.name, COALESCE(a.emoji, ''), a.is_archived, a.created_at,
+		COALESCE(SUM(s.end_at - s.start_at), interval '0') AS total_dur,
+		COUNT(*) AS sessions
+	FROM activity_sessions s
+	JOIN activities a ON a.id = s.activity_id
+	WHERE s.user_id = $1
+	  AND a.is_archived = FALSE
+	  AND s.end_at IS NOT NULL
+	  AND s.start_at >= date_trunc('day', now())
+	  AND s.start_at < date_trunc('day', now()) + interval '1 day'
+	GROUP BY a.id, a.user_id, a.name, a.emoji, a.is_archived, a.created_at
+	ORDER BY total_dur DESC;
+	`
+	rows, err := r.db.Query(ctx, q, userID)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("today activities query: %w", err)
+	}
+	defer rows.Close()
+
+	activities := make([]Activity, 0, 16)
+	durations := make([]time.Duration, 0, 16)
+	sessions := make([]int, 0, 16)
+	for rows.Next() {
+		var a Activity
+		var dur time.Duration
+		var cnt int
+		if err := rows.Scan(&a.ID, &a.UserID, &a.Name, &a.Emoji, &a.IsArchived, &a.CreatedAt, &dur, &cnt); err != nil {
+			return nil, nil, nil, fmt.Errorf("today activities scan: %w", err)
+		}
+		activities = append(activities, a)
+		durations = append(durations, dur)
+		sessions = append(sessions, cnt)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, nil, fmt.Errorf("today activities rows: %w", err)
+	}
+	return activities, durations, sessions, nil
+}
+
+func (r *trackRepository) GetPeriodActivities(ctx context.Context, userID int64, from, to time.Time, activityIDs []int64) ([]Activity, []time.Duration, []int, time.Duration, int, error) {
+	if userID <= 0 {
+		return nil, nil, nil, 0, 0, fmt.Errorf("period activities: invalid userID")
+	}
+	if from.After(to) {
+		return nil, nil, nil, 0, 0, fmt.Errorf("period activities: invalid range")
+	}
+	if len(activityIDs) == 0 {
+		return nil, nil, nil, 0, 0, nil
+	}
+
+	q := `
+	SELECT
+		a.id, a.user_id, a.name, COALESCE(a.emoji, ''), a.is_archived, a.created_at,
+		COALESCE(SUM(s.end_at - s.start_at), interval '0') AS total_dur,
+		COUNT(*) AS sessions
+	FROM activity_sessions s
+	JOIN activities a ON a.id = s.activity_id
+	WHERE s.user_id = $1
+	  AND a.is_archived = FALSE
+	  AND s.end_at IS NOT NULL
+	  AND s.start_at >= $2
+	  AND s.start_at < $3
+	  AND s.activity_id = ANY($4)
+	GROUP BY a.id, a.user_id, a.name, a.emoji, a.is_archived, a.created_at
+	ORDER BY total_dur DESC;
+	`
+
+	rows, err := r.db.Query(ctx, q, userID, from.UTC(), to.UTC(), activityIDs)
+	if err != nil {
+		return nil, nil, nil, 0, 0, fmt.Errorf("period activities query: %w", err)
+	}
+	defer rows.Close()
+
+	activities := make([]Activity, 0, len(activityIDs))
+	durations := make([]time.Duration, 0, len(activityIDs))
+	sessions := make([]int, 0, len(activityIDs))
+	var total time.Duration
+	var totalSessions int
+
+	for rows.Next() {
+		var a Activity
+		var dur time.Duration
+		var cnt int
+		if err := rows.Scan(&a.ID, &a.UserID, &a.Name, &a.Emoji, &a.IsArchived, &a.CreatedAt, &dur, &cnt); err != nil {
+			return nil, nil, nil, 0, 0, fmt.Errorf("period activities scan: %w", err)
+		}
+		activities = append(activities, a)
+		durations = append(durations, dur)
+		sessions = append(sessions, cnt)
+		total += dur
+		totalSessions += cnt
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, nil, 0, 0, fmt.Errorf("period activities rows: %w", err)
+	}
+
+	return activities, durations, sessions, total, totalSessions, nil
+}
+
+func (r *trackRepository) GetPeriodMonthlyTotals(ctx context.Context, userID int64, from, to time.Time, activityIDs []int64) ([]time.Time, []time.Duration, error) {
+	if userID <= 0 || len(activityIDs) == 0 {
+		return nil, nil, nil
+	}
+	q := `
+	SELECT date_trunc('month', s.start_at) AS month_start,
+	       COALESCE(SUM(s.end_at - s.start_at), interval '0') AS total_dur
+	FROM activity_sessions s
+	JOIN activities a ON a.id = s.activity_id
+	WHERE s.user_id = $1
+	  AND a.is_archived = FALSE
+	  AND s.end_at IS NOT NULL
+	  AND s.start_at >= $2
+	  AND s.start_at < $3
+	  AND s.activity_id = ANY($4)
+	GROUP BY month_start
+	ORDER BY month_start;
+	`
+	rows, err := r.db.Query(ctx, q, userID, from.UTC(), to.UTC(), activityIDs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("period monthly query: %w", err)
+	}
+	defer rows.Close()
+	months := make([]time.Time, 0, 16)
+	durs := make([]time.Duration, 0, 16)
+	for rows.Next() {
+		var m time.Time
+		var d time.Duration
+		if err := rows.Scan(&m, &d); err != nil {
+			return nil, nil, fmt.Errorf("period monthly scan: %w", err)
+		}
+		months = append(months, m)
+		durs = append(durs, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("period monthly rows: %w", err)
+	}
+	return months, durs, nil
+}
+
+func (r *trackRepository) GetMonthDailyTotals(ctx context.Context, userID int64, month time.Time, activityIDs []int64) (map[int]time.Duration, error) {
+	if userID <= 0 {
+		return nil, fmt.Errorf("month daily totals: invalid userID")
+	}
+	if len(activityIDs) == 0 {
+		return map[int]time.Duration{}, nil
+	}
+	first := time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, time.UTC)
+	next := first.AddDate(0, 1, 0)
+	q := `
+	SELECT EXTRACT(DAY FROM s.start_at)::int AS day_num,
+	       COALESCE(SUM(s.end_at - s.start_at), interval '0') AS total_dur
+	FROM activity_sessions s
+	JOIN activities a ON a.id = s.activity_id
+	WHERE s.user_id = $1
+	  AND a.is_archived = FALSE
+	  AND s.end_at IS NOT NULL
+	  AND s.start_at >= $2
+	  AND s.start_at < $3
+	  AND s.activity_id = ANY($4)
+	GROUP BY day_num
+	ORDER BY day_num;
+	`
+	rows, err := r.db.Query(ctx, q, userID, first, next, activityIDs)
+	if err != nil {
+		return nil, fmt.Errorf("month daily totals query: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[int]time.Duration)
+	for rows.Next() {
+		var day int
+		var dur time.Duration
+		if err := rows.Scan(&day, &dur); err != nil {
+			return nil, fmt.Errorf("month daily totals scan: %w", err)
+		}
+		out[day] = dur
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("month daily totals rows: %w", err)
+	}
+	return out, nil
+}
+
+func (r *trackRepository) GetPeriodBuckets(ctx context.Context, userID int64, from, to time.Time, activityIDs []int64, granularity string) ([]time.Time, []time.Duration, error) {
+	if userID <= 0 || len(activityIDs) == 0 {
+		return nil, nil, nil
+	}
+	if granularity != "month" && granularity != "day" && granularity != "hour" {
+		return nil, nil, fmt.Errorf("invalid granularity")
+	}
+	q := fmt.Sprintf(`
+	SELECT date_trunc('%s', s.start_at) AS bucket_start,
+	       COALESCE(SUM(s.end_at - s.start_at), interval '0') AS total_dur
+	FROM activity_sessions s
+	JOIN activities a ON a.id = s.activity_id
+	WHERE s.user_id = $1
+	  AND a.is_archived = FALSE
+	  AND s.end_at IS NOT NULL
+	  AND s.start_at >= $2
+	  AND s.start_at < $3
+	  AND s.activity_id = ANY($4)
+	GROUP BY bucket_start
+	ORDER BY bucket_start;
+	`, granularity)
+	rows, err := r.db.Query(ctx, q, userID, from.UTC(), to.UTC(), activityIDs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("period buckets query: %w", err)
+	}
+	defer rows.Close()
+
+	buckets := make([]time.Time, 0, 64)
+	durs := make([]time.Duration, 0, 64)
+	for rows.Next() {
+		var b time.Time
+		var d time.Duration
+		if err := rows.Scan(&b, &d); err != nil {
+			return nil, nil, fmt.Errorf("period buckets scan: %w", err)
+		}
+		buckets = append(buckets, b)
+		durs = append(durs, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("period buckets rows: %w", err)
+	}
+	return buckets, durs, nil
 }

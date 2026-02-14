@@ -40,6 +40,34 @@ type TimerDueUser struct {
 	IntervalMin int
 }
 
+type ActivityDurationStat struct {
+	ActivityID int64
+	Name       string
+	Emoji      string
+	Duration   time.Duration
+	Sessions   int
+}
+
+type ReportTodayStats struct {
+	TotalTracked  time.Duration
+	TotalSessions int
+	TopActivities []ActivityDurationStat
+}
+
+type ReportPeriodStats struct {
+	From          time.Time
+	To            time.Time
+	TotalTracked  time.Duration
+	TotalSessions int
+	Activities    []ActivityDurationStat
+	Monthly       []MonthDurationStat
+}
+
+type MonthDurationStat struct {
+	Month    time.Time
+	Duration time.Duration
+}
+
 type LearningStats struct {
 	Language     string
 	TotalWords   int

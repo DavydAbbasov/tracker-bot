@@ -101,6 +101,274 @@ func (m *Module) ShowTrackingMenu(ctx *tgctx.MsgContext) {
 	}
 }
 
+func (m *Module) ShowReportsHub(ctx *tgctx.MsgContext, inPlace bool) {
+	text := "📈 Reports\n\nChoose a report type:"
+	msgReply := tgbotapi.NewMessage(ctx.ChatID, "📈")
+	msgReply.ReplyMarkup = track.TrackReportsReplyMenu()
+	_, _ = m.bot.Send(msgReply)
+
+	if inPlace && ctx.MessageID > 0 {
+		msg := tgbotapi.NewEditMessageText(ctx.ChatID, ctx.MessageID, text)
+		_, _ = m.bot.Send(msg)
+		return
+	}
+	_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, text))
+}
+
+func (m *Module) ShowTodayChart(ctx *tgctx.MsgContext) {
+	stats, err := m.tracksvc.GetTodayReport(ctx.Ctx, ctx.DBUserID)
+	if err != nil {
+		log.Error().Err(err).Msg("today chart failed")
+		_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to load chart data."))
+		return
+	}
+	if len(stats.TopActivities) == 0 {
+		_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "📉 No data for chart yet."))
+		return
+	}
+
+	maxDur := time.Duration(1)
+	for _, a := range stats.TopActivities {
+		if a.Duration > maxDur {
+			maxDur = a.Duration
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString("📉 Today Chart\n\n")
+	total := stats.TotalTracked
+	for _, a := range stats.TopActivities {
+		name := a.Name
+		if a.Emoji != "" {
+			name = a.Emoji + " " + a.Name
+		}
+		barLen := int((float64(a.Duration) / float64(maxDur)) * 12.0)
+		if barLen < 1 {
+			barLen = 1
+		}
+		if barLen > 12 {
+			barLen = 12
+		}
+		percent := percentOf(a.Duration, total)
+		b.WriteString(fmt.Sprintf("%s\n%s %s (%s)\n\n", name, strings.Repeat("█", barLen), formatReportDuration(a.Duration), percent))
+	}
+
+	msg := tgbotapi.NewMessage(ctx.ChatID, b.String())
+	msg.ReplyMarkup = track.TrackReportTodayInlineMenu()
+	_, _ = m.bot.Send(msg)
+}
+
+func (m *Module) ShowPeriodMenu(ctx *tgctx.MsgContext, selected map[int64]bool, month, from, to time.Time) {
+	items, err := m.tracksvc.ListActivities(ctx.Ctx, ctx.DBUserID)
+	if err != nil {
+		_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to load activities for period."))
+		return
+	}
+	if month.IsZero() {
+		month = time.Now().UTC()
+	}
+	rangeLabel := formatDateOrDash(from) + ".." + formatDateOrDash(to)
+	text := fmt.Sprintf("📅 Period Report\nSelected: %d activities\nRange: %s", len(selected), rangeLabel)
+	if ctx.MessageID > 0 {
+		edit := tgbotapi.NewEditMessageTextAndMarkup(
+			ctx.ChatID,
+			ctx.MessageID,
+			text,
+			track.TrackReportPeriodInlineMenu(items, selected, rangeLabel),
+		)
+		_, _ = m.bot.Send(edit)
+		return
+	}
+	msg := tgbotapi.NewMessage(ctx.ChatID, text)
+	msg.ReplyMarkup = track.TrackReportPeriodInlineMenu(items, selected, rangeLabel)
+	_, _ = m.bot.Send(msg)
+}
+
+func (m *Module) ShowPeriodTextReport(ctx *tgctx.MsgContext, from, to time.Time, activityIDs []int64, selectedOnly bool) {
+	stats, err := m.tracksvc.GetPeriodReport(ctx.Ctx, ctx.DBUserID, from, to.Add(24*time.Hour), activityIDs)
+	if err != nil {
+		_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to build period report."))
+		return
+	}
+	var b strings.Builder
+	b.WriteString("📄 Period Report\n\n")
+	b.WriteString(fmt.Sprintf("Range: %s..%s\n", from.Format("2006-01-02"), to.Format("2006-01-02")))
+	if selectedOnly {
+		b.WriteString("Scope: selected activities\n")
+	} else {
+		b.WriteString("Scope: all selected in menu\n")
+	}
+	b.WriteString(fmt.Sprintf("Total: %s\nSessions: %d\n\n", formatReportDuration(stats.TotalTracked), stats.TotalSessions))
+	total := stats.TotalTracked
+	if len(stats.Activities) == 0 {
+		b.WriteString("No sessions for this period.")
+	} else {
+		for i, a := range stats.Activities {
+			name := a.Name
+			if a.Emoji != "" {
+				name = a.Emoji + " " + a.Name
+			}
+			b.WriteString(fmt.Sprintf("%d) %s - %s (%s, %d)\n", i+1, name, formatReportDuration(a.Duration), percentOf(a.Duration, total), a.Sessions))
+		}
+	}
+	m.appendGranularityText(ctx, &b, from, to, activityIDs)
+	_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, b.String()))
+}
+
+func (m *Module) ShowPeriodChartReport(ctx *tgctx.MsgContext, from, to time.Time, activityIDs []int64) {
+	stats, err := m.tracksvc.GetPeriodReport(ctx.Ctx, ctx.DBUserID, from, to.Add(24*time.Hour), activityIDs)
+	if err != nil {
+		_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to build period chart."))
+		return
+	}
+	if len(stats.Activities) == 0 {
+		_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "📉 No data for selected period."))
+		return
+	}
+	maxDur := time.Duration(1)
+	for _, a := range stats.Activities {
+		if a.Duration > maxDur {
+			maxDur = a.Duration
+		}
+	}
+	var b strings.Builder
+	b.WriteString("📉 Period Chart\n\n")
+	b.WriteString(fmt.Sprintf("Range: %s..%s\n\n", from.Format("2006-01-02"), to.Format("2006-01-02")))
+	total := stats.TotalTracked
+	for _, a := range stats.Activities {
+		name := a.Name
+		if a.Emoji != "" {
+			name = a.Emoji + " " + a.Name
+		}
+		barLen := int((float64(a.Duration) / float64(maxDur)) * 12)
+		if barLen < 1 {
+			barLen = 1
+		}
+		b.WriteString(fmt.Sprintf("%s\n%s %s (%s, %d)\n\n", name, strings.Repeat("█", barLen), formatReportDuration(a.Duration), percentOf(a.Duration, total), a.Sessions))
+	}
+	m.appendGranularityText(ctx, &b, from, to, activityIDs)
+	_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, b.String()))
+}
+
+func (m *Module) ShowPeriodCalendar(ctx *tgctx.MsgContext, month, from, to time.Time) {
+	text := fmt.Sprintf("📅 Pick period days\nFrom: %s\nTo: %s", formatDateOrDash(from), formatDateOrDash(to))
+	edit := tgbotapi.NewEditMessageTextAndMarkup(
+		ctx.ChatID,
+		ctx.MessageID,
+		text,
+		track.TrackReportPeriodCalendarInlineMenu(month, from, to),
+	)
+	_, _ = m.bot.Send(edit)
+}
+
+func (m *Module) appendGranularityText(ctx *tgctx.MsgContext, b *strings.Builder, from, to time.Time, activityIDs []int64) {
+	if len(activityIDs) == 0 {
+		return
+	}
+
+	granularity := "day"
+	labelFmt := "2006-01-02"
+	if from.Year() != to.Year() {
+		granularity = "month"
+		labelFmt = "2006-01"
+	} else if from.Year() == to.Year() && from.Month() == to.Month() && from.Day() == to.Day() {
+		granularity = "hour"
+		labelFmt = "15:00"
+	}
+
+	buckets, durs, err := m.tracksvc.GetPeriodBuckets(ctx.Ctx, ctx.DBUserID, from, to.Add(24*time.Hour), activityIDs, granularity)
+	if err != nil || len(buckets) == 0 {
+		return
+	}
+
+	switch granularity {
+	case "month":
+		b.WriteString("\nBy months:\n")
+	case "day":
+		b.WriteString("\nBy days:\n")
+	case "hour":
+		b.WriteString("\nBy hours:\n")
+	}
+
+	for i := range buckets {
+		b.WriteString(fmt.Sprintf("- %s: %s\n", buckets[i].Format(labelFmt), formatReportDuration(durs[i])))
+	}
+}
+
+func (m *Module) ShowTodayReport(ctx *tgctx.MsgContext) {
+	m.ShowTodayChart(ctx)
+}
+
+func (m *Module) ShowTodayReportBySelected(ctx *tgctx.MsgContext) {
+	m.ShowTodaySelectActivities(ctx, map[int64]bool{})
+}
+
+func (m *Module) ShowTodaySelectActivities(ctx *tgctx.MsgContext, selected map[int64]bool) {
+	items, err := m.tracksvc.ListActivities(ctx.Ctx, ctx.DBUserID)
+	if err != nil {
+		_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to load activities."))
+		return
+	}
+	text := "🧩 Select activities for today chart"
+	if ctx.MessageID > 0 {
+		edit := tgbotapi.NewEditMessageTextAndMarkup(
+			ctx.ChatID,
+			ctx.MessageID,
+			text,
+			track.TrackTodaySelectActivitiesInlineMenu(items, selected),
+		)
+		_, _ = m.bot.Send(edit)
+		return
+	}
+	msg := tgbotapi.NewMessage(ctx.ChatID, text)
+	msg.ReplyMarkup = track.TrackTodaySelectActivitiesInlineMenu(items, selected)
+	_, _ = m.bot.Send(msg)
+}
+
+func (m *Module) renderTodayReport(ctx *tgctx.MsgContext, stats models.ReportTodayStats, err error, title string) {
+	if err != nil {
+		log.Error().Err(err).Msg("today report failed")
+		if ctx.MessageID > 0 {
+			edit := tgbotapi.NewEditMessageText(ctx.ChatID, ctx.MessageID, "⚠️ Failed to load today report.")
+			_, _ = m.bot.Send(edit)
+		} else {
+			_, _ = m.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to load today report."))
+		}
+		return
+	}
+
+	var b strings.Builder
+	b.WriteString(title + "\n\n")
+	b.WriteString(fmt.Sprintf("Total: %s\n", formatReportDuration(stats.TotalTracked)))
+	b.WriteString(fmt.Sprintf("Sessions: %d\n\n", stats.TotalSessions))
+	if len(stats.TopActivities) == 0 {
+		b.WriteString("Top activities: none yet")
+	} else {
+		b.WriteString("Top activities:\n")
+		for i, item := range stats.TopActivities {
+			name := item.Name
+			if item.Emoji != "" {
+				name = item.Emoji + " " + item.Name
+			}
+			b.WriteString(fmt.Sprintf("%d) %s - %s (%d)\n", i+1, name, formatReportDuration(item.Duration), item.Sessions))
+		}
+	}
+
+	if ctx.MessageID > 0 {
+		edit := tgbotapi.NewEditMessageTextAndMarkup(
+			ctx.ChatID,
+			ctx.MessageID,
+			b.String(),
+			track.TrackReportTodayInlineMenu(),
+		)
+		_, _ = m.bot.Send(edit)
+		return
+	}
+	msg := tgbotapi.NewMessage(ctx.ChatID, b.String())
+	msg.ReplyMarkup = track.TrackReportTodayInlineMenu()
+	_, _ = m.bot.Send(msg)
+}
+
 func (m *Module) PromptCreateActivity(ctx *tgctx.MsgContext) {
 	text := "📌 *Create New Activity*\n\nEnter activity name:"
 	msg := tgbotapi.NewMessage(ctx.ChatID, text)
@@ -534,6 +802,37 @@ func (m *Module) findActivityName(ctx *tgctx.MsgContext, activityID int64) strin
 		}
 	}
 	return fmt.Sprintf("#%d", activityID)
+}
+
+func formatReportDuration(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	switch {
+	case h > 0 && m > 0:
+		return fmt.Sprintf("%dh %dm", h, m)
+	case h > 0:
+		return fmt.Sprintf("%dh", h)
+	default:
+		return fmt.Sprintf("%dm", m)
+	}
+}
+
+func formatDateOrDash(t time.Time) string {
+	if t.IsZero() {
+		return "—"
+	}
+	return t.Format("2006-01-02")
+}
+
+func percentOf(part, total time.Duration) string {
+	if total <= 0 || part <= 0 {
+		return "0%"
+	}
+	p := (float64(part) / float64(total)) * 100.0
+	return fmt.Sprintf("%.1f%%", p)
 }
 
 func (m *Module) ShowLearningMenu(ctx *tgctx.MsgContext) {
