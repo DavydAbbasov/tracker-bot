@@ -2,31 +2,24 @@ tracker-bot is a Telegram bot for tracking your daily activities over configurab
 It lets you create activities, receive periodic prompts, select what you are currently doing, and automatically record time spent on each activity.
 Over time, the bot generates detailed reports showing how much time you spent on specific activities per day or aggregated across multiple days.
 
-## Recent Improvements
+## What You Can Do
 
-The project was recently cleaned up and aligned to a clearer architecture without changing core behavior.
+- Create and manage activities (`active` / `archived`)
+- Select activities you want to track right now
+- Start a timer with fixed interval prompts
+- Answer prompt messages and automatically save tracked time
+- Get statistics for:
+  - today
+  - custom date periods
+  - selected activities only
+- View reports in:
+  - text format
+  - chart-like format
 
-- `application` was split into clear phases:
-  - config is parsed in `cmd/tracker-bot/main.go`
-  - dependencies are wired in `Application.Build(...)`
-  - runtime is started in `Application.Run(...)`
-- handler module naming was clarified:
-  - `internal/handlers/router.go` was renamed to `internal/handlers/module.go`
-- dispatcher and handlers were refactored for readability:
-  - less duplicate code
-  - clearer helper methods
-  - short, practical function comments
-- model layer was cleaned:
-  - removed unused constants
-  - clarified DTO comments
-- utility layer was normalized:
-  - `internal/utils/tgcient` renamed to `internal/utils/tgclient`
-  - dead code removed from Telegram client helper
-  - PostgreSQL client naming simplified
-- Docker setup improved:
-  - removed `.env` copy into image
-  - non-root runtime user
-  - better multi-arch build support
-- developer experience improved:
-  - simplified `Makefile` with readable targets
-  - `.DS_Store` is now ignored in Git
+## How Tracking Works
+
+1. Create activities (for example: Go, English, Workout).
+2. Select active activities.
+3. Start timer prompts (e.g. every 15/30 minutes).
+4. When bot asks "What are you doing now?", choose one activity.
+5. Bot saves a retro session for the last interval and builds reports from saved sessions.
