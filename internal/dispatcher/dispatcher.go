@@ -2,6 +2,8 @@ package dispatcher
 
 import (
 	"context"
+	"strings"
+	trackbtn "tracker-bot/internal/buttons/track"
 	"tracker-bot/internal/models"
 	"tracker-bot/internal/service"
 
@@ -24,7 +26,20 @@ type Dispatcher struct {
 	learning     *router.Module
 
 	reply *h.ReplyModule
+
+	waitingActivityName map[int64]bool
+	userScreen          map[int64]string
 }
+
+const (
+	screenUnknown        = ""
+	screenHome           = "home"
+	screenTrackMain      = "track_main"
+	screenTrackManage    = "track_manage"
+	screenTrackTimer     = "track_timer"
+	screenTrackArchive   = "track_archive"
+	screenCreateActivity = "create_activity"
+)
 
 func New(
 	bot *tgbotapi.BotAPI,
@@ -45,14 +60,16 @@ func New(
 	}
 
 	d := &Dispatcher{
-		bot:          bot,
-		appCtx:       appCtx,
-		entrysvc:     entrysvc,
-		track:        track,
-		subscription: subscription,
-		entry:        entry,
-		profile:      profile,
-		learning:     learning,
+		bot:                 bot,
+		appCtx:              appCtx,
+		entrysvc:            entrysvc,
+		track:               track,
+		subscription:        subscription,
+		entry:               entry,
+		profile:             profile,
+		learning:            learning,
+		waitingActivityName: make(map[int64]bool),
+		userScreen:          make(map[int64]string),
 	}
 
 	d.reply = h.New(bot, track, subscription, entry, profile, learning)
@@ -134,6 +151,9 @@ func (d *Dispatcher) handleMessage(msg *tgbotapi.Message) {
 	}
 
 	// 3) reply-кнопки
+	if ctxText := mctx.Text; ctxText == "📈Track" {
+		d.userScreen[mctx.UserID] = screenTrackMain
+	}
 	if d.reply != nil && d.reply.HandleReplyButtons(mctx) {
 		return
 	}
@@ -153,13 +173,19 @@ func (d *Dispatcher) handleCallback(q *tgbotapi.CallbackQuery) {
 	}
 
 	mctx := &tgctx.MsgContext{
-		Ctx:    d.appCtx,
-		ChatID: q.Message.Chat.ID,
-		Text:   q.Data,
-		UserID: int64(q.From.ID),
+		Ctx:       d.appCtx,
+		ChatID:    q.Message.Chat.ID,
+		Text:      q.Data,
+		UserID:    int64(q.From.ID),
+		MessageID: q.Message.MessageID,
 	}
 
 	if !d.ensureUser(mctx, q.Message.Chat.ID, q.From) {
+		return
+	}
+
+	if strings.HasPrefix(q.Data, "track:") || strings.HasPrefix(q.Data, "act_toggle_:") {
+		d.handleTrackCallback(mctx, q.Data)
 		return
 	}
 
@@ -169,6 +195,19 @@ func (d *Dispatcher) handleCallback(q *tgbotapi.CallbackQuery) {
 }
 
 func (d *Dispatcher) handleUserState(ctx *tgctx.MsgContext) bool {
+	if d.waitingActivityName[ctx.UserID] {
+		if d.isTrackButtonText(ctx.Text) {
+			_, _ = d.bot.Send(tgbotapi.NewMessage(ctx.ChatID, "Use buttons from menu. Enter activity name as plain text."))
+			return true
+		}
+		done := d.track.ProcessCreateActivity(ctx)
+		if done {
+			delete(d.waitingActivityName, ctx.UserID)
+			d.userScreen[ctx.UserID] = screenTrackMain
+		}
+		return true
+	}
+
 	return false
 }
 
@@ -177,6 +216,7 @@ func (d *Dispatcher) handleCommand(msg *tgbotapi.Message, ctx *tgctx.MsgContext)
 
 	switch cmd {
 	case "start":
+		d.userScreen[ctx.UserID] = screenHome
 		d.entry.ShowEntryMenu(ctx)
 		return
 
@@ -197,8 +237,123 @@ func (d *Dispatcher) handleCommand(msg *tgbotapi.Message, ctx *tgctx.MsgContext)
 }
 
 func (d *Dispatcher) handleText(ctx *tgctx.MsgContext) {
+	switch ctx.Text {
+	case trackbtn.TrackButtonActivityDelete:
+		if d.userScreen[ctx.UserID] != screenTrackManage {
+			d.replyUseButtons(ctx.ChatID)
+			return
+		}
+		d.track.DeleteSelectedActivities(ctx)
+		return
+	case trackbtn.TrackButtonActivityActivate:
+		if d.userScreen[ctx.UserID] != screenTrackManage && d.userScreen[ctx.UserID] != screenTrackMain {
+			d.replyUseButtons(ctx.ChatID)
+			return
+		}
+		d.userScreen[ctx.UserID] = screenTrackTimer
+		d.track.ShowTrackTimerMenu(ctx)
+		return
+	case trackbtn.TrackButtonActivityArchive:
+		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.track.ShowArchiveMenu(ctx)
+		return
+	case trackbtn.TrackButtonViewArchive:
+		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.track.ShowArchiveMenu(ctx)
+		return
+	case trackbtn.TrackButtonSelectActivity:
+		d.userScreen[ctx.UserID] = screenTrackManage
+		d.track.ShowTrackActivitySelectionMenu(ctx)
+		return
+	case trackbtn.TrackButtonTimer15:
+		if d.userScreen[ctx.UserID] != screenTrackTimer {
+			d.replyUseButtons(ctx.ChatID)
+			return
+		}
+		d.track.ActivateTrackTimer(ctx, 15)
+		d.userScreen[ctx.UserID] = screenHome
+		return
+	case trackbtn.TrackButtonTimer30:
+		if d.userScreen[ctx.UserID] != screenTrackTimer {
+			d.replyUseButtons(ctx.ChatID)
+			return
+		}
+		d.track.ActivateTrackTimer(ctx, 30)
+		d.userScreen[ctx.UserID] = screenHome
+		return
+	case trackbtn.TrackButtonBackHome:
+		d.userScreen[ctx.UserID] = screenHome
+		d.entry.ShowEntryMenu(ctx)
+		return
+	}
+
 	out := tgbotapi.NewMessage(ctx.ChatID, "Я тебя понял, но не знаю что с этим сделать. Напиши /help")
 	if _, err := d.bot.Send(out); err != nil {
 		log.Error().Err(err).Msg("send fallback failed")
+	}
+}
+
+func (d *Dispatcher) handleTrackCallback(ctx *tgctx.MsgContext, data string) {
+	switch {
+	case data == "noop":
+		return
+	case data == "back_to_main":
+		d.userScreen[ctx.UserID] = screenTrackMain
+		d.track.ShowTrackingMenu(ctx)
+	case data == trackbtn.TrackCBActivitySelect:
+		d.userScreen[ctx.UserID] = screenTrackManage
+		d.track.ShowTrackActivitySelectionMenu(ctx)
+	case data == trackbtn.TrackCBActivityCreate:
+		d.waitingActivityName[ctx.UserID] = true
+		d.userScreen[ctx.UserID] = screenCreateActivity
+		d.track.PromptCreateActivity(ctx)
+	case data == trackbtn.TrackCBArchiveOpen:
+		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.track.ShowArchiveMenu(ctx)
+	case data == trackbtn.TrackCBOpenArchive:
+		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.track.ShowArchiveMenuInPlace(ctx)
+	case data == trackbtn.TrackCBOpenActivities:
+		d.userScreen[ctx.UserID] = screenTrackManage
+		d.track.ShowTrackActivitySelectionMenuInPlace(ctx)
+	case data == trackbtn.TrackCBCreateAnother:
+		d.waitingActivityName[ctx.UserID] = true
+		d.userScreen[ctx.UserID] = screenCreateActivity
+		d.track.PromptCreateActivity(ctx)
+	case data == trackbtn.TrackCBArchiveSelected:
+		d.userScreen[ctx.UserID] = screenTrackArchive
+		d.track.ArchiveSelectedActivitiesInPlace(ctx)
+	case data == trackbtn.TrackCBArchiveToActive:
+		d.userScreen[ctx.UserID] = screenTrackManage
+		d.track.ShowTrackActivitySelectionMenuInPlace(ctx)
+	case data == trackbtn.TrackCBPromptStopTimer:
+		d.track.StopTrackTimer(ctx)
+	case strings.HasPrefix(data, trackbtn.TrackCBPromptActivity):
+		d.track.RecordPromptAnswer(ctx)
+	case strings.HasPrefix(data, trackbtn.TrackCBArchiveRestore):
+		d.track.RestoreArchivedActivity(ctx)
+	case strings.HasPrefix(data, trackbtn.TrackCBArchiveDelete):
+		d.track.DeleteArchivedForever(ctx)
+	case strings.HasPrefix(data, "act_toggle_:"):
+		d.track.HandleTrackToggleCallback(ctx)
+	}
+}
+
+func (d *Dispatcher) replyUseButtons(chatID int64) {
+	_, _ = d.bot.Send(tgbotapi.NewMessage(chatID, "Use buttons from menu."))
+}
+
+func (d *Dispatcher) isTrackButtonText(text string) bool {
+	switch text {
+	case trackbtn.TrackButtonActivityActivate,
+		trackbtn.TrackButtonActivityArchive,
+		trackbtn.TrackButtonActivityDelete,
+		trackbtn.TrackButtonTimer15,
+		trackbtn.TrackButtonTimer30,
+		trackbtn.TrackButtonBackHome,
+		trackbtn.TrackButtonViewArchive:
+		return true
+	default:
+		return false
 	}
 }

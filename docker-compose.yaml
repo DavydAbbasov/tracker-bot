@@ -5,7 +5,7 @@ services:
       POSTGRES_DB: tracker
       POSTGRES_USER: tracker
       POSTGRES_PASSWORD: tracker
-    ports: ["5434:5432"]   
+    ports: ["5438:5432"]   
     volumes: ["db_data:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U tracker -d tracker"]
@@ -20,7 +20,11 @@ services:
         condition: service_healthy
     command: [ "/app/migrator" ]
     environment:
-      POSTGRES_DSN: postgres://tracker:tracker@db:5432/tracker?sslmode=disable
+      HOST_DB: "db"
+      PORT_DB: "5432"
+      USER_DB: "tracker"
+      PASSWORD_DB: "tracker"
+      NAME_DB: "tracker"
     restart: "no"
 
   app:

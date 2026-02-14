@@ -7,6 +7,7 @@ import (
 	"tracker-bot/internal/dispatcher"
 	router "tracker-bot/internal/handlers"
 	"tracker-bot/internal/repo"
+	"tracker-bot/internal/scheduler"
 	"tracker-bot/internal/service"
 	"tracker-bot/internal/utils/pgclient"
 	tgclient "tracker-bot/internal/utils/tgcient"
@@ -49,15 +50,20 @@ func (app *Application) Start(ctx context.Context) error {
 	trackRepo := repo.NewTrackerRepository(app.db.Pool())
 	learningRepo := repo.NewLearningRepository(app.db.Pool())
 	subscriptionRepo := repo.NewSubscriptionRepository(app.db.Pool())
+	timerRepo := repo.NewTimerRepository(app.db.Pool())
+	sessionRepo := repo.NewSessionRepository(app.db.Pool())
 
 	entrysvc := service.NewEntryService(entryRepo)
 	provilesvc := service.NewProfileService(profileRepo)
 	tracksvc := service.NewTrackerService(trackRepo)
+	timersvc := service.NewTimerService(timerRepo, sessionRepo)
 	learningsvc := service.NewLearningService(learningRepo)
 	subscriptionsvc := service.NewSubscriptionService(subscriptionRepo)
 
-	module := router.New(app.bot, entrysvc, provilesvc, tracksvc, learningsvc, subscriptionsvc)
+	module := router.New(app.bot, entrysvc, provilesvc, tracksvc, timersvc, learningsvc, subscriptionsvc, app.cfg.TestTimerMinutes)
 	app.dispatcher = dispatcher.New(app.bot, ctx, entrysvc, module, module, module, module, module)
+	timerScheduler := scheduler.NewTimerScheduler(ctx, timersvc, module)
+	timerScheduler.Run()
 
 	app.dispatcher.Run()
 	fmt.Println("dispatcher running")

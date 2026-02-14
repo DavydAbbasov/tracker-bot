@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"os"
 	"tracker-bot/internal/config"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -12,7 +13,9 @@ import (
 )
 
 func main() {
-	_ = godotenv.Load(".env")
+	if os.Getenv("HOST_DB") == "" {
+		_ = godotenv.Load(".env")
+	}
 
 	cfg, err := config.ParseConfig()
 	if err != nil {

@@ -27,6 +27,19 @@ type MainStats struct {
 	StreakDays          int
 }
 
+type TrackActivityItem struct {
+	ID       int64
+	Name     string
+	Emoji    string
+	Selected bool
+}
+
+type TimerDueUser struct {
+	DBUserID    int64
+	TgUserID    int64
+	IntervalMin int
+}
+
 type LearningStats struct {
 	Language     string
 	TotalWords   int

@@ -24,9 +24,13 @@ type Activity struct {
 type TrackerRepository interface {
 	Create(ctx context.Context, userID int64, name, emoji string) (Activity, error)
 	ListActive(ctx context.Context, userID int64) ([]Activity, error)
+	ListArchived(ctx context.Context, userID int64) ([]Activity, error)
 	SelectedListActive(ctx context.Context, userID int64) ([]int64, error)
 	ToggleSelectedActive(ctx context.Context, userID, activityID int64) error
 	DeleteSelected(ctx context.Context, userID int64) (int64, error)
+	ArchiveSelected(ctx context.Context, userID int64) (int64, error)
+	RestoreArchived(ctx context.Context, userID, activityID int64) error
+	DeleteArchivedForever(ctx context.Context, userID, activityID int64) error
 }
 type trackRepository struct {
 	db *pgxpool.Pool
@@ -100,9 +104,9 @@ func (r *trackRepository) ListActive(ctx context.Context, userID int64) ([]Activ
 		if err := rows.Scan(
 			&a.ID, &a.UserID, &a.Name, &a.Emoji, &a.IsArchived, &a.CreatedAt,
 		); err != nil {
+			return nil, fmt.Errorf("list active scan: %w", err)
 		}
 		out = append(out, a)
-		return nil, fmt.Errorf("list active scan: %w", err)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("list active rows: %w", err)
@@ -140,6 +144,38 @@ func (r *trackRepository) SelectedListActive(ctx context.Context, userID int64) 
 		return nil, fmt.Errorf("selected list rows: %w", err)
 	}
 	return ids, nil
+}
+
+func (r *trackRepository) ListArchived(ctx context.Context, userID int64) ([]Activity, error) {
+	if userID <= 0 {
+		return nil, fmt.Errorf("list archived: invalid userID")
+	}
+
+	q := `
+	SELECT id, user_id, name, emoji, is_archived, created_at
+	FROM activities
+	WHERE user_id = $1 AND is_archived = true
+	ORDER BY lower(name), id;
+	`
+
+	rows, err := r.db.Query(ctx, q, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list archived query: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]Activity, 0, 16)
+	for rows.Next() {
+		var a Activity
+		if err := rows.Scan(&a.ID, &a.UserID, &a.Name, &a.Emoji, &a.IsArchived, &a.CreatedAt); err != nil {
+			return nil, fmt.Errorf("list archived scan: %w", err)
+		}
+		out = append(out, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list archived rows: %w", err)
+	}
+	return out, nil
 }
 
 // to do transaction
@@ -212,4 +248,76 @@ func (r *trackRepository) DeleteSelected(ctx context.Context, userID int64) (int
 		return 0, fmt.Errorf("delete selected exec: %w", err)
 	}
 	return tag.RowsAffected(), nil
+}
+
+func (r *trackRepository) ArchiveSelected(ctx context.Context, userID int64) (int64, error) {
+	if userID <= 0 {
+		return 0, fmt.Errorf("archive selected: invalid userID")
+	}
+
+	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("archive selected begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	updateQ := `
+	UPDATE activities a
+	SET is_archived = TRUE
+	FROM user_selected_activities s
+	WHERE a.id = s.activity_id
+	  AND a.user_id = $1
+	  AND s.user_id = $1;
+	`
+	tag, err := tx.Exec(ctx, updateQ, userID)
+	if err != nil {
+		return 0, fmt.Errorf("archive selected update: %w", err)
+	}
+
+	cleanupQ := `DELETE FROM user_selected_activities WHERE user_id = $1;`
+	if _, err := tx.Exec(ctx, cleanupQ, userID); err != nil {
+		return 0, fmt.Errorf("archive selected cleanup: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("archive selected commit: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
+func (r *trackRepository) RestoreArchived(ctx context.Context, userID, activityID int64) error {
+	if userID <= 0 || activityID <= 0 {
+		return fmt.Errorf("restore archived: invalid input")
+	}
+	q := `
+	UPDATE activities
+	SET is_archived = FALSE
+	WHERE id = $1 AND user_id = $2 AND is_archived = TRUE;
+	`
+	tag, err := r.db.Exec(ctx, q, activityID, userID)
+	if err != nil {
+		return fmt.Errorf("restore archived exec: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return errlocal.ErrActivityNotFound
+	}
+	return nil
+}
+
+func (r *trackRepository) DeleteArchivedForever(ctx context.Context, userID, activityID int64) error {
+	if userID <= 0 || activityID <= 0 {
+		return fmt.Errorf("delete archived forever: invalid input")
+	}
+	q := `
+	DELETE FROM activities
+	WHERE id = $1 AND user_id = $2 AND is_archived = TRUE;
+	`
+	tag, err := r.db.Exec(ctx, q, activityID, userID)
+	if err != nil {
+		return fmt.Errorf("delete archived forever exec: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return errlocal.ErrActivityNotFound
+	}
+	return nil
 }

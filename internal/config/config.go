@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Telegram  Telegram
-	PostreSQL PgConfig
+	Telegram         Telegram
+	PostreSQL        PgConfig
+	TestTimerMinutes int `env:"TEST_TIMER_MINUTES" env-default:"0"`
 }
 type PgConfig struct {
 	Host    string `env:"HOST_DB"`
@@ -31,6 +32,13 @@ const (
 
 func ParseConfig() (*Config, error) {
 	var cfg Config
+
+	if os.Getenv("HOST_DB") != "" {
+		if err := cleanenv.ReadEnv(&cfg); err != nil {
+			return nil, fmt.Errorf("read env: %w", err)
+		}
+		return &cfg, nil
+	}
 
 	path := os.Getenv(envConfigPath) //prod
 	if path == "" {

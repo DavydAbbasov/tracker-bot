@@ -25,7 +25,7 @@ func NewEntryService(repo repo.EntryRepository) EntryService {
 func (s *entryService) EnsureUser(ctx context.Context, user *models.UserInput) (int64, error) {
 	_, err := s.repo.GetByID(ctx, user.TgUserID)
 	if err == nil {
-		return 0, nil
+		return s.repo.GetDBIDByTgUserID(ctx, user.TgUserID)
 	}
 
 	if !errors.Is(err, models.ErrUserNotFound) {

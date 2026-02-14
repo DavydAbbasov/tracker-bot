@@ -5,8 +5,17 @@ package track
 const (
 	TrackCBActivitySelect     = "track:activity:select"
 	TrackCBActivityCreate     = "track:activity:create"
+	TrackCBPromptActivity     = "track:prompt:activity:"
+	TrackCBPromptStopTimer    = "track:prompt:stop"
 	TrackCBReportSummary      = "track:report:summary"
 	TrackCBArchiveOpen        = "track:archive:open"
+	TrackCBArchiveSelected    = "track:archive:selected"
+	TrackCBArchiveRestore     = "track:archive:restore:"
+	TrackCBArchiveDelete      = "track:archive:delete:"
+	TrackCBArchiveToActive    = "track:archive:to_active"
+	TrackCBOpenActivities     = "track:open:activities"
+	TrackCBCreateAnother      = "track:create:another"
+	TrackCBOpenArchive        = "track:open:archive"
 	TrackCBActivityReportOpen = "track:activity:report"
 )
 
@@ -47,6 +56,7 @@ const (
 // Timer reply menu buttons
 const (
 	TrackButtonTimer15     = "⏱ 15 min"
+	TrackButtonTimer30     = "⏱ 30 min"
 	TrackButtonTimer60     = "⏱ 60 min"
 	TrackButtonTimerCreate = "➕ Custom Timer"
 )
