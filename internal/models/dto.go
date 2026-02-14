@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// UserInput contains user fields accepted from Telegram/update flow.
+// UserInput is used by entry flow to create or update user profile fields.
 type UserInput struct {
 	TgUserID    int64
 	UserName    *string
@@ -12,6 +12,7 @@ type UserInput struct {
 	TimeZone    *string
 }
 
+// ProfileStats is a lightweight profile view model.
 type ProfileStats struct {
 	TgUserID    int64
 	UserName    *string
@@ -20,6 +21,8 @@ type ProfileStats struct {
 	Language    *string
 	TimeZone    *string
 }
+
+// MainStats contains summary values for tracking home screen.
 type MainStats struct {
 	CurrentActivityName string
 	TodayTracked        time.Duration
@@ -27,6 +30,7 @@ type MainStats struct {
 	StreakDays          int
 }
 
+// TrackActivityItem is an activity row used in selection UIs.
 type TrackActivityItem struct {
 	ID       int64
 	Name     string
@@ -34,12 +38,14 @@ type TrackActivityItem struct {
 	Selected bool
 }
 
+// TimerDueUser represents one user that should receive timer prompt now.
 type TimerDueUser struct {
 	DBUserID    int64
 	TgUserID    int64
 	IntervalMin int
 }
 
+// ActivityDurationStat is one activity aggregate line in reports.
 type ActivityDurationStat struct {
 	ActivityID int64
 	Name       string
@@ -48,12 +54,14 @@ type ActivityDurationStat struct {
 	Sessions   int
 }
 
+// ReportTodayStats is a daily aggregate report.
 type ReportTodayStats struct {
 	TotalTracked  time.Duration
 	TotalSessions int
 	TopActivities []ActivityDurationStat
 }
 
+// ReportPeriodStats is an aggregate report for arbitrary date range.
 type ReportPeriodStats struct {
 	From          time.Time
 	To            time.Time
@@ -63,11 +71,13 @@ type ReportPeriodStats struct {
 	Monthly       []MonthDurationStat
 }
 
+// MonthDurationStat stores total duration for one month bucket.
 type MonthDurationStat struct {
 	Month    time.Time
 	Duration time.Duration
 }
 
+// LearningStats contains values for learning dashboard.
 type LearningStats struct {
 	Language     string
 	TotalWords   int
@@ -76,6 +86,7 @@ type LearningStats struct {
 	NextWordIn   string
 }
 
+// SubscriptionStats contains values for subscription screen.
 type SubscriptionStats struct {
 	ActivePlan string
 	DaysEnd    int

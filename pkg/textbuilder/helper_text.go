@@ -1,3 +1,4 @@
+// Package textbuilder provides small text-format helpers for bot UI.
 package textbuilder
 
 import "strings"
@@ -23,6 +24,7 @@ func escapeMarkdown(s string) string {
 	return r.Replace(s)
 }
 
+// StrOrDashMD returns markdown-escaped string value or dash for empty/nil.
 func StrOrDashMD(s *string) string {
 	return escapeMarkdown(strOrDash(s))
 }

@@ -23,7 +23,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("parse config: %v", err)
 	}
-	db, err := pgclient.NewPgProvider(context.Background(), cfg.PostgresDSN())
+	db, err := pgclient.New(context.Background(), cfg.PostgresDSN())
 	if err != nil {
 		log.Fatalf("pg connect: %v", err)
 	}

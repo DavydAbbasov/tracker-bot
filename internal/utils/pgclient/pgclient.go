@@ -8,11 +8,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type PostgreDB struct {
+// Client wraps pgx connection pool.
+type Client struct {
 	db *pgxpool.Pool
 }
 
-func NewPgProvider(ctx context.Context, dsn string) (*PostgreDB, error) {
+// New creates and pings PostgreSQL connection pool.
+func New(ctx context.Context, dsn string) (*Client, error) {
 	db, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("error get database driver %w", err)
@@ -22,18 +24,18 @@ func NewPgProvider(ctx context.Context, dsn string) (*PostgreDB, error) {
 		return nil, fmt.Errorf("error connection to database %w", err)
 	}
 
-	log.Info().Msg("database Repos connection is success")
+	log.Info().Msg("database connection established")
 
-	r := &PostgreDB{
+	r := &Client{
 		db: db,
 	}
 	return r, nil
 }
-func (c *PostgreDB) Pool() *pgxpool.Pool {
+func (c *Client) Pool() *pgxpool.Pool {
 	return c.db
 }
 
-func (c *PostgreDB) Close() {
+func (c *Client) Close() {
 	if c.db != nil {
 		c.db.Close()
 	}

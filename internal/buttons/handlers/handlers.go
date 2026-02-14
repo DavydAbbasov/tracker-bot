@@ -2,14 +2,14 @@ package handlers
 
 import (
 	"tracker-bot/internal/handlers"
-	tgclient "tracker-bot/internal/utils/tgcient"
+	"tracker-bot/internal/utils/tgclient"
 	"tracker-bot/internal/utils/tgctx"
 
 	"github.com/rs/zerolog/log"
 )
 
 type ReplyModule struct {
-	bot          tgclient.TgBotAPI
+	bot          tgclient.BotAPI
 	track        *handlers.Module
 	subscription *handlers.Module
 	entry        *handlers.Module
@@ -17,7 +17,7 @@ type ReplyModule struct {
 	learning     *handlers.Module
 }
 
-func New(bot tgclient.TgBotAPI, track *handlers.Module, subscription *handlers.Module, entry *handlers.Module, profile *handlers.Module, learning *handlers.Module) *ReplyModule {
+func New(bot tgclient.BotAPI, track *handlers.Module, subscription *handlers.Module, entry *handlers.Module, profile *handlers.Module, learning *handlers.Module) *ReplyModule {
 	return &ReplyModule{
 		bot:          bot,
 		track:        track,

@@ -10,14 +10,14 @@ import (
 	"tracker-bot/internal/scheduler"
 	"tracker-bot/internal/service"
 	"tracker-bot/internal/utils/pgclient"
-	tgclient "tracker-bot/internal/utils/tgcient"
+	"tracker-bot/internal/utils/tgclient"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type Application struct {
 	cfg            *config.Config
-	db             *pgclient.PostgreDB
+	db             *pgclient.Client
 	bot            *tgbotapi.BotAPI
 	dispatcher     *dispatcher.Dispatcher
 	timerScheduler *scheduler.TimerScheduler
@@ -33,7 +33,7 @@ func (app *Application) Build(ctx context.Context) error {
 		return fmt.Errorf("build application: nil config")
 	}
 
-	db, err := pgclient.NewPgProvider(ctx, app.cfg.PostgresDSN())
+	db, err := pgclient.New(ctx, app.cfg.PostgresDSN())
 	if err != nil {
 		return fmt.Errorf("init pg client: %w", err)
 	}
@@ -46,6 +46,7 @@ func (app *Application) Build(ctx context.Context) error {
 	bot.Debug = app.cfg.Telegram.TelegramBotDebug
 	app.bot = bot
 
+	//repositories
 	entryRepo := repo.NewEntryRepository(app.db.Pool())
 	profileRepo := repo.NewProfileRepository(app.db.Pool())
 	trackRepo := repo.NewTrackerRepository(app.db.Pool())
@@ -54,6 +55,7 @@ func (app *Application) Build(ctx context.Context) error {
 	timerRepo := repo.NewTimerRepository(app.db.Pool())
 	sessionRepo := repo.NewSessionRepository(app.db.Pool())
 
+	//services
 	entrysvc := service.NewEntryService(entryRepo)
 	provilesvc := service.NewProfileService(profileRepo)
 	tracksvc := service.NewTrackerService(trackRepo)
@@ -61,6 +63,7 @@ func (app *Application) Build(ctx context.Context) error {
 	learningsvc := service.NewLearningService(learningRepo)
 	subscriptionsvc := service.NewSubscriptionService(subscriptionRepo)
 
+	//handlers and dispatcher
 	module := handlers.New(app.bot, entrysvc, provilesvc, tracksvc, timersvc, learningsvc, subscriptionsvc, app.cfg.TestTimerMinutes)
 	app.dispatcher = dispatcher.New(app.bot, ctx, entrysvc, module, module, module, module, module)
 	app.timerScheduler = scheduler.NewTimerScheduler(ctx, timersvc, module)

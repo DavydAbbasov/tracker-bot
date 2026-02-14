@@ -9,12 +9,14 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// TimerScheduler periodically checks due users and sends tracking prompts.
 type TimerScheduler struct {
 	ctx      context.Context
 	timersvc service.TimerService
 	track    *handlers.Module
 }
 
+// NewTimerScheduler creates scheduler instance.
 func NewTimerScheduler(ctx context.Context, timersvc service.TimerService, track *handlers.Module) *TimerScheduler {
 	return &TimerScheduler{
 		ctx:      ctx,
@@ -23,6 +25,7 @@ func NewTimerScheduler(ctx context.Context, timersvc service.TimerService, track
 	}
 }
 
+// Run starts background ticker loop.
 func (s *TimerScheduler) Run() {
 	ticker := time.NewTicker(10 * time.Second)
 	go func() {
@@ -38,6 +41,7 @@ func (s *TimerScheduler) Run() {
 	}()
 }
 
+// tick processes one scheduler cycle at provided UTC time.
 func (s *TimerScheduler) tick(now time.Time) {
 	dueUsers, err := s.timersvc.ListDueUsers(s.ctx, now, 100)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"tracker-bot/internal/repo"
 )
 
+// TimerService contains timer-related use-cases.
 type TimerService interface {
 	Activate(ctx context.Context, userID int64, intervalMin int) error
 	Stop(ctx context.Context, userID int64) error
@@ -22,6 +23,7 @@ type timerService struct {
 	sessionRepo repo.SessionRepository
 }
 
+// NewTimerService creates timer service.
 func NewTimerService(timerRepo repo.TimerRepository, sessionRepo repo.SessionRepository) TimerService {
 	return &timerService{
 		timerRepo:   timerRepo,
@@ -29,6 +31,7 @@ func NewTimerService(timerRepo repo.TimerRepository, sessionRepo repo.SessionRep
 	}
 }
 
+// Activate enables timer and schedules next prompt.
 func (s *timerService) Activate(ctx context.Context, userID int64, intervalMin int) error {
 	if userID <= 0 {
 		return fmt.Errorf("activate timer: invalid userID")
@@ -40,6 +43,7 @@ func (s *timerService) Activate(ctx context.Context, userID int64, intervalMin i
 	return s.timerRepo.UpsertInterval(ctx, userID, intervalMin, nextPingAt)
 }
 
+// Stop disables timer for user.
 func (s *timerService) Stop(ctx context.Context, userID int64) error {
 	if userID <= 0 {
 		return fmt.Errorf("stop timer: invalid userID")
@@ -47,6 +51,7 @@ func (s *timerService) Stop(ctx context.Context, userID int64) error {
 	return s.timerRepo.Disable(ctx, userID)
 }
 
+// ListDueUsers returns users that should receive prompt now.
 func (s *timerService) ListDueUsers(ctx context.Context, now time.Time, limit int) ([]models.TimerDueUser, error) {
 	if limit <= 0 {
 		limit = 100
@@ -54,11 +59,13 @@ func (s *timerService) ListDueUsers(ctx context.Context, now time.Time, limit in
 	return s.timerRepo.ListDueUsers(ctx, now.UTC(), limit)
 }
 
+// MarkPromptSent moves next prompt time forward by interval.
 func (s *timerService) MarkPromptSent(ctx context.Context, userID int64, intervalMin int, now time.Time) error {
 	nextPingAt := now.UTC().Add(time.Duration(intervalMin) * time.Minute)
 	return s.timerRepo.SetNextPing(ctx, userID, nextPingAt)
 }
 
+// RecordPromptAnswer stores prompt answer using current timer interval from settings.
 func (s *timerService) RecordPromptAnswer(ctx context.Context, userID, activityID int64) error {
 	intervalMin, err := s.timerRepo.GetInterval(ctx, userID)
 	if err != nil {
@@ -67,6 +74,7 @@ func (s *timerService) RecordPromptAnswer(ctx context.Context, userID, activityI
 	return s.sessionRepo.CreateRetroSession(ctx, userID, activityID, intervalMin, "prompt")
 }
 
+// RecordPromptAnswerWithInterval stores prompt answer for explicit interval.
 func (s *timerService) RecordPromptAnswerWithInterval(ctx context.Context, userID, activityID int64, intervalMin int) error {
 	if intervalMin <= 0 {
 		return fmt.Errorf("invalid interval")

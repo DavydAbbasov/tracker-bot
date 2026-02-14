@@ -1,40 +1,70 @@
-.PHONY: help build run test clean deps migrate-up migrate-down docker-up docker-down
+.PHONY: help deps fmt test build run \
+	up down rebuild logs ps \
+	migrate seed-stats clean
 
-deps: ## Install dependencies
-	go mod download
-	go mod tidy
+# ---- Common settings ---------------------------------------------------------
 
-run: ## Run the application
-	go run cmd/tracker-bot/main.go
+GO ?= go
+APP_MAIN ?= ./cmd/tracker-bot/main.go
+MIGRATOR_MAIN ?= ./cmd/migrator/main.go
+SEED_MAIN ?= ./cmd/seed-stats/main.go
+
+GOCACHE_DIR ?= $(CURDIR)/.gocache
+COMPOSE ?= docker compose
+
+# For local DB tools/clients.
+DB_HOST ?= 127.0.0.1
+DB_PORT ?= 5438
+DB_NAME ?= tracker
+DB_USER ?= tracker
+DB_PASS ?= tracker
+
+help: ## Show available commands
+	@echo "Available targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
+
+deps: ## Download and tidy Go modules
+	$(GO) mod download
+	$(GO) mod tidy
+
+fmt: ## Format Go files
+	$(GO) fmt ./...
 
 test: ## Run tests
-	go test -v ./...
+	GOCACHE=$(GOCACHE_DIR) $(GO) test ./...
 
-clean: ## Clean build artifacts
-	rm -rf bin/
-	go clean
+build: ## Build tracker bot binary
+	mkdir -p bin
+	$(GO) build -o bin/tracker-bot $(APP_MAIN)
 
-migrate-up: ## Run database migrations up
-	goose -dir migrations/pgsql postgres "host=localhost port=5434 user=postgres password=12345 dbname=casino_notifications sslmode=disable" up
+run: ## Run tracker bot locally
+	$(GO) run $(APP_MAIN)
 
-migrate-down: ## Run database migrations down
-	goose -dir migrations/pgsql postgres "host=localhost port=5434 user=postgres password=12345 dbname=casino_notifications sslmode=disable" down
+up: ## Start services with Docker Compose
+	$(COMPOSE) up -d
 
-migrate-status: ## Check migration status
-	goose -dir migrations/pgsql postgres "host=localhost port=5434 user=postgres password=12345 dbname=casino_notifications sslmode=disable" status
+down: ## Stop services
+	$(COMPOSE) down
 
-docker-up: ## Start docker compose services
-	docker-compose up -d
+rebuild: ## Rebuild and recreate services
+	$(COMPOSE) up -d --build --force-recreate
 
-docker-down: ## Stop docker compose services
-	docker-compose down
+logs: ## Follow docker compose logs
+	$(COMPOSE) logs -f
 
-dev: docker-up ## Start development environment
-	@echo "Waiting for database to be ready..."
-	@sleep 5
-	make migrate-up
-	@echo "Development environment is ready!"
-	@echo "- PostgreSQL: localhost:5434"
-	
-logs: ## Show docker logs
-	docker-compose logs -f
+ps: ## Show docker compose status
+	$(COMPOSE) ps
+
+migrate: ## Run DB migrations via Go migrator
+	$(GO) run $(MIGRATOR_MAIN)
+
+seed-stats: ## Seed demo sessions (requires TG user id)
+	@if [ -z "$(TG_USER_ID)" ]; then \
+		echo "Usage: make seed-stats TG_USER_ID=<telegram_user_id>"; \
+		exit 1; \
+	fi
+	$(GO) run $(SEED_MAIN) -tg-user-id $(TG_USER_ID)
+
+clean: ## Remove local build/cache artifacts
+	rm -rf bin .gocache
