@@ -85,7 +85,7 @@ func (m *Module) ShowProfileMenu(ctx *tgctx.MsgContext) {
 
 // ShowTrackingMenu loads tracking stats and renders tracking home screen.
 func (m *Module) ShowTrackingMenu(ctx *tgctx.MsgContext) {
-	stats, err := m.tracksvc.GetMainStats(ctx.Ctx, ctx.UserID)
+	stats, err := m.tracksvc.GetMainStats(ctx.Ctx, ctx.DBUserID)
 	if err != nil {
 		log.Error().Err(err).Msg("GetMainStats failed")
 		msg := tgbotapi.NewMessage(ctx.ChatID, "⚠️ Failed to load tracking data. Please try again.")

@@ -37,6 +37,10 @@ type TrackerRepository interface {
 	GetPeriodMonthlyTotals(ctx context.Context, userID int64, from, to time.Time, activityIDs []int64) ([]time.Time, []time.Duration, error)
 	GetMonthDailyTotals(ctx context.Context, userID int64, month time.Time, activityIDs []int64) (map[int]time.Duration, error)
 	GetPeriodBuckets(ctx context.Context, userID int64, from, to time.Time, activityIDs []int64, granularity string) ([]time.Time, []time.Duration, error)
+	GetLastTrackedActiveActivity(ctx context.Context, userID int64) (Activity, bool, error)
+	GetTodayDurationByActivity(ctx context.Context, userID, activityID int64) (time.Duration, error)
+	GetTrackedDaysDescByActivity(ctx context.Context, userID, activityID int64) ([]time.Time, error)
+	GetTodayTrackedActivitiesCount(ctx context.Context, userID int64) (int, error)
 }
 type trackRepository struct {
 	db *pgxpool.Pool
@@ -580,4 +584,101 @@ func (r *trackRepository) GetPeriodBuckets(ctx context.Context, userID int64, fr
 		return nil, nil, fmt.Errorf("period buckets rows: %w", err)
 	}
 	return buckets, durs, nil
+}
+
+func (r *trackRepository) GetLastTrackedActiveActivity(ctx context.Context, userID int64) (Activity, bool, error) {
+	if userID <= 0 {
+		return Activity{}, false, fmt.Errorf("last tracked active activity: invalid userID")
+	}
+	q := `
+	SELECT a.id, a.user_id, a.name, COALESCE(a.emoji, ''), a.is_archived, a.created_at
+	FROM activity_sessions s
+	JOIN activities a ON a.id = s.activity_id
+	WHERE s.user_id = $1
+	  AND a.is_archived = FALSE
+	ORDER BY COALESCE(s.end_at, s.start_at) DESC
+	LIMIT 1;
+	`
+	var a Activity
+	err := r.db.QueryRow(ctx, q, userID).Scan(&a.ID, &a.UserID, &a.Name, &a.Emoji, &a.IsArchived, &a.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Activity{}, false, nil
+	}
+	if err != nil {
+		return Activity{}, false, fmt.Errorf("last tracked active activity query: %w", err)
+	}
+	return a, true, nil
+}
+
+func (r *trackRepository) GetTodayDurationByActivity(ctx context.Context, userID, activityID int64) (time.Duration, error) {
+	if userID <= 0 || activityID <= 0 {
+		return 0, fmt.Errorf("today duration by activity: invalid input")
+	}
+	q := `
+	SELECT COALESCE(SUM(s.end_at - s.start_at), interval '0')
+	FROM activity_sessions s
+	WHERE s.user_id = $1
+	  AND s.activity_id = $2
+	  AND s.end_at IS NOT NULL
+	  AND s.start_at >= date_trunc('day', now())
+	  AND s.start_at < date_trunc('day', now()) + interval '1 day';
+	`
+	var total time.Duration
+	if err := r.db.QueryRow(ctx, q, userID, activityID).Scan(&total); err != nil {
+		return 0, fmt.Errorf("today duration by activity query: %w", err)
+	}
+	return total, nil
+}
+
+func (r *trackRepository) GetTrackedDaysDescByActivity(ctx context.Context, userID, activityID int64) ([]time.Time, error) {
+	if userID <= 0 || activityID <= 0 {
+		return nil, fmt.Errorf("tracked days by activity: invalid input")
+	}
+	q := `
+	SELECT DISTINCT date_trunc('day', s.start_at AT TIME ZONE 'UTC')::timestamp
+	FROM activity_sessions s
+	WHERE s.user_id = $1
+	  AND s.activity_id = $2
+	  AND s.end_at IS NOT NULL
+	ORDER BY 1 DESC;
+	`
+	rows, err := r.db.Query(ctx, q, userID, activityID)
+	if err != nil {
+		return nil, fmt.Errorf("tracked days by activity query: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]time.Time, 0, 64)
+	for rows.Next() {
+		var day time.Time
+		if err := rows.Scan(&day); err != nil {
+			return nil, fmt.Errorf("tracked days by activity scan: %w", err)
+		}
+		out = append(out, day.UTC())
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("tracked days by activity rows: %w", err)
+	}
+	return out, nil
+}
+
+func (r *trackRepository) GetTodayTrackedActivitiesCount(ctx context.Context, userID int64) (int, error) {
+	if userID <= 0 {
+		return 0, fmt.Errorf("today tracked activities count: invalid userID")
+	}
+	q := `
+	SELECT COUNT(DISTINCT s.activity_id)
+	FROM activity_sessions s
+	JOIN activities a ON a.id = s.activity_id
+	WHERE s.user_id = $1
+	  AND a.is_archived = FALSE
+	  AND s.end_at IS NOT NULL
+	  AND s.start_at >= date_trunc('day', now())
+	  AND s.start_at < date_trunc('day', now()) + interval '1 day';
+	`
+	var count int
+	if err := r.db.QueryRow(ctx, q, userID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("today tracked activities count query: %w", err)
+	}
+	return count, nil
 }

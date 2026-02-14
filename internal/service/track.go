@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 	"tracker-bot/internal/models"
@@ -40,12 +41,44 @@ func NewTrackerService(repo repo.TrackerRepository) TrackerService {
 
 // GetMainStats returns tracking home summary.
 func (srv *trackerService) GetMainStats(ctx context.Context, userID int64) (models.MainStats, error) {
-	// TODO: replace mock values with real repository data.
+	if userID <= 0 {
+		return models.MainStats{}, fmt.Errorf("main stats: invalid userID")
+	}
+
+	last, ok, err := srv.repo.GetLastTrackedActiveActivity(ctx, userID)
+	if err != nil {
+		return models.MainStats{}, err
+	}
+	if !ok {
+		return models.MainStats{}, nil
+	}
+
+	total, err := srv.repo.GetTodayDurationByActivity(ctx, userID, last.ID)
+	if err != nil {
+		return models.MainStats{}, err
+	}
+
+	days, err := srv.repo.GetTrackedDaysDescByActivity(ctx, userID, last.ID)
+	if err != nil {
+		return models.MainStats{}, err
+	}
+
+	todayTrackedActivities, err := srv.repo.GetTodayTrackedActivitiesCount(ctx, userID)
+	if err != nil {
+		return models.MainStats{}, err
+	}
+
+	streak := calcStreakDays(days, time.Now().UTC())
+	currentName := last.Name
+	if strings.TrimSpace(last.Emoji) != "" {
+		currentName = last.Emoji + " " + last.Name
+	}
+
 	return models.MainStats{
-		CurrentActivityName: "Go",
-		TodayTracked:        4*60*60 + 52*60,
-		TodaySessions:       4,
-		StreakDays:          104,
+		CurrentActivityName: currentName,
+		TodayTracked:        total,
+		TodaySessions:       todayTrackedActivities,
+		StreakDays:          streak,
 	}, nil
 }
 
@@ -258,4 +291,26 @@ func (srv *trackerService) GetMonthDailyTotals(ctx context.Context, userID int64
 // GetPeriodBuckets returns bucketed totals (hour/day/month).
 func (srv *trackerService) GetPeriodBuckets(ctx context.Context, userID int64, from, to time.Time, activityIDs []int64, granularity string) ([]time.Time, []time.Duration, error) {
 	return srv.repo.GetPeriodBuckets(ctx, userID, from, to, activityIDs, granularity)
+}
+
+func calcStreakDays(days []time.Time, now time.Time) int {
+	if len(days) == 0 {
+		return 0
+	}
+	daySet := make(map[string]struct{}, len(days))
+	for _, d := range days {
+		daySet[d.UTC().Format("2006-01-02")] = struct{}{}
+	}
+
+	cur := time.Date(now.UTC().Year(), now.UTC().Month(), now.UTC().Day(), 0, 0, 0, 0, time.UTC)
+	streak := 0
+	for {
+		key := cur.Format("2006-01-02")
+		if _, ok := daySet[key]; !ok {
+			break
+		}
+		streak++
+		cur = cur.AddDate(0, 0, -1)
+	}
+	return streak
 }
