@@ -1,7 +1,5 @@
 package models
 
-// system constants
-
 // Telegram system relay commands
 const (
 	CommandStart = "start"

@@ -1,10 +1,6 @@
 package entry
 
-// ---------------------------------------------------------------------
-
-// Buttons (Inline + Reply)
-
-// Entry reply menu buttons
+// Reply menu buttons for the entry screen.
 const (
 	EntryButtonProfile      = "👤My account"
 	EntryButtonTrack        = "📈Track"

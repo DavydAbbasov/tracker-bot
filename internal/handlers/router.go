@@ -19,7 +19,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-//inline and replay routers
+// Module routes UI actions to services and renders bot responses.
 
 type Handler interface {
 	Track()
@@ -73,7 +73,6 @@ func (m *Module) ShowProfileMenu(ctx *tgctx.MsgContext) {
 	text := profile.ProfileMenuText(stats)
 
 	msg := tgbotapi.NewMessage(ctx.ChatID, text)
-	// msg.ParseMode = "Markdown"
 	msg.ReplyMarkup = profile.ProfileEntryInlineMenu()
 
 	if _, err := m.bot.Send(msg); err != nil {

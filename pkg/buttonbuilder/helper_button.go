@@ -1,38 +1,34 @@
-// helpers for build telegram buttons and keyboardss
+// Package buttonbuilder provides small helpers to build Telegram keyboards.
 package buttonbuilder
 
 import tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
-// --- Inline helpers ----
-
-// Inline buttons
+// IB creates one inline button.
 func IB(text, data string) tgbotapi.InlineKeyboardButton {
 	return tgbotapi.NewInlineKeyboardButtonData(text, data)
 }
 
-// inline button row
+// IR creates one inline keyboard row.
 func IR(btns ...tgbotapi.InlineKeyboardButton) []tgbotapi.InlineKeyboardButton {
 	return tgbotapi.NewInlineKeyboardRow(btns...)
 }
 
-// inline keyboard markup
+// IK creates an inline keyboard from rows.
 func IK(rows ...[]tgbotapi.InlineKeyboardButton) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
-// --- Replys helpers ----
-
-// Reply buttons
+// RB creates one reply button.
 func RB(text string) tgbotapi.KeyboardButton {
 	return tgbotapi.NewKeyboardButton(text)
 }
 
-// reply button row
+// RR creates one reply keyboard row.
 func RR(btns ...tgbotapi.KeyboardButton) []tgbotapi.KeyboardButton {
 	return tgbotapi.NewKeyboardButtonRow(btns...)
 }
 
-// reply keyboard markup
+// RK creates a resize-enabled reply keyboard from rows.
 func RK(rows ...[]tgbotapi.KeyboardButton) tgbotapi.ReplyKeyboardMarkup {
 	kb := tgbotapi.NewReplyKeyboard(rows...)
 	kb.ResizeKeyboard = true

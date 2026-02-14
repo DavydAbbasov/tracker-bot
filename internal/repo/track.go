@@ -76,7 +76,7 @@ func (r *trackRepository) Create(ctx context.Context, userID int64, name, emoji 
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
-			// 23505 = unique_violation
+			// 23505 is PostgreSQL unique_violation.
 			if pgErr.Code == "23505" {
 				return Activity{}, errlocal.ErrActivityExists
 			}
@@ -184,20 +184,20 @@ func (r *trackRepository) ListArchived(ctx context.Context, userID int64) ([]Act
 	return out, nil
 }
 
-// to do transaction
+// ToggleSelectedActive toggles one activity in user_selected_activities.
+// A transaction keeps ownership check and toggle operation atomic.
 func (r *trackRepository) ToggleSelectedActive(ctx context.Context, userID, activityID int64) error {
 	if userID <= 0 || activityID <= 0 {
 		return fmt.Errorf("toggle selected: invalid ids")
 	}
 
-	// В транзакции, чтобы не было гонок между проверкой владения и insert/delete
 	tx, err := r.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("toggle selected begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	// 1) Проверка владения активностью
+	// 1) Ensure the activity belongs to this user and is active.
 	ownQ := `
 	SELECT EXISTS(
 		SELECT 1
@@ -212,7 +212,7 @@ func (r *trackRepository) ToggleSelectedActive(ctx context.Context, userID, acti
 		return errlocal.ErrActivityNotFound
 	}
 
-	// 2) Пробуем удалить (если было выбрано)
+	// 2) Try to unselect first.
 	delQ := `
 	DELETE FROM user_selected_activities
 	WHERE user_id = $1 AND activity_id = $2;`
@@ -224,7 +224,7 @@ func (r *trackRepository) ToggleSelectedActive(ctx context.Context, userID, acti
 		return tx.Commit(ctx)
 	}
 
-	// 3) Не было — вставляем
+	// 3) If nothing was deleted, select it.
 	insQ := `
 	INSERT INTO user_selected_activities(user_id, activity_id)
 	VALUES ($1, $2)

@@ -157,18 +157,18 @@ func (d *Dispatcher) handleMessage(msg *tgbotapi.Message) {
 		return
 	}
 
-	// 1) команды СНАЧАЛА (чтобы /start не шёл в reply)
+	// Handle slash commands first, so they are not treated as plain reply button text.
 	if msg.IsCommand() {
 		d.handleCommand(msg, mctx)
 		return
 	}
 
-	// 2) FSM
+	// Then handle temporary user states (e.g. waiting for activity name).
 	if d.handleUserState(mctx) {
 		return
 	}
 
-	// 3) reply-кнопки
+	// Then process reply keyboard buttons.
 	if ctxText := mctx.Text; ctxText == "📈Track" {
 		d.userScreen[mctx.UserID] = screenTrackMain
 	}
@@ -176,7 +176,7 @@ func (d *Dispatcher) handleMessage(msg *tgbotapi.Message) {
 		return
 	}
 
-	// 4) обычный текст
+	// Fallback for regular text messages.
 	d.handleText(mctx)
 }
 

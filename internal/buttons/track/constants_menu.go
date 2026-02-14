@@ -51,12 +51,44 @@ const (
 	TrackButtonViewArchive    = "🗄 Archive"
 )
 
+// Shared inline labels
+const (
+	TrackLabelBack               = "↩️ Back"
+	TrackLabelBackToReports      = "↩️ Back to Reports"
+	TrackLabelOpenActivities     = "📂 Open Activities"
+	TrackLabelOpenArchive        = "🗄 Open Archive"
+	TrackLabelCreateAnother      = "➕ Create Another"
+	TrackLabelArchiveSelected    = "🛒 Archive selected"
+	TrackLabelActiveActivities   = "📂 Active activities"
+	TrackLabelRestore            = "♻ Restore"
+	TrackLabelDeleteForever      = "🗑 Delete forever"
+	TrackLabelSelectedActivities = "Selected activities"
+	TrackLabelTextReport         = "📄 Text report"
+	TrackLabelChartReport        = "📉 Chart report"
+	TrackLabelSelectActivities   = "🧩 Select activities"
+	TrackLabelBuildChart         = "✅ Build chart"
+	TrackLabelStopTimer          = "⏹ Stop Timer"
+	TrackLabelRangePrefix        = "🗓 Range: "
+	TrackLabelConfirmRange       = "✅ Confirm range"
+	TrackLabelSelectEndDate      = "Select end date"
+	TrackLabelCancel             = "Cancel"
+	TrackLabelMonth              = "Month"
+	TrackLabelMon                = "Mo"
+	TrackLabelTue                = "Tu"
+	TrackLabelWed                = "We"
+	TrackLabelThu                = "Th"
+	TrackLabelFri                = "Fr"
+	TrackLabelSat                = "Sa"
+	TrackLabelSun                = "Su"
+	TrackLabelArchiveItemPrefix  = "📦 "
+)
+
 // Common reply buttons
 const (
-	TrackButtonToday         = "📊 Today"
-	TrackButtonPeriod        = "📅 Calendar"
-	TrackButtonBack          = "◀ Back"
-	TrackButtonBackHome      = "🏠 Home"
+	TrackButtonToday    = "📊 Today"
+	TrackButtonPeriod   = "📅 Calendar"
+	TrackButtonBack     = "◀ Back"
+	TrackButtonBackHome = "🏠 Home"
 )
 
 // Report reply menu buttons

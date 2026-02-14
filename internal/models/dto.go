@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// для входящих
+// UserInput contains user fields accepted from Telegram/update flow.
 type UserInput struct {
 	TgUserID    int64
 	UserName    *string

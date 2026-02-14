@@ -1,12 +1,3 @@
 package config
 
-// import "go.uber.org/fx"
-
-// var Module = fx.Module("config",
-// 	fx.Provide(
-// 		New,
-// 		func(cfg *Config) *Config {
-// 			return cfg
-// 		},
-// 	),
-// )
+// This file is intentionally kept as a placeholder for optional DI wiring.

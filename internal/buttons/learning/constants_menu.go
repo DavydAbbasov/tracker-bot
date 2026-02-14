@@ -1,8 +1,6 @@
 package learning
 
-// ---------------------------------------------------------------------
-// Inline callbacks (actions)
-
+// Inline callbacks.
 const (
 	LearningCBAddCollection    = "learning:add:collection"
 	LearningCBRandomWords      = "learning:random:words"
@@ -11,10 +9,7 @@ const (
 	LearningCBBaseWords        = "learning:base:words"
 )
 
-// ---------------------------------------------------------------------
-// Buttons (Inline + Reply)
-
-// Entry inline menu buttons
+// Inline menu buttons.
 const (
 	LearningButtonAddCollection    = "➕ Create a collection"
 	LearningButtonRandomWords      = "🎲 Random collection"
@@ -23,23 +18,20 @@ const (
 	LearningButtonBaseWords        = "🗂 Word base"
 )
 
-// Add Collection reply menu buttons
+// "Add collection" reply menu buttons.
 const (
 	LearningButtonHelp = "ℹ️ Help"
 	LearningButtonHome = "🏠 Home"
 )
 
-// Add words reply menu buttons
+// "Add words" reply menu buttons.
 const (
 	LearningButtonAddWord  = "➕ Add a word"
 	LearningButtonComplete = "✅ Finish"
 	LearningButtonBackHome = "🏠 Home"
 )
 
-// ---------------------------------------------------------------------
-// Track UI texts (titles/labels shown inside messages)
-
-// Main screen
+// Learning screen labels.
 const (
 	LearningUIMainTitle        = "🧠 Learning"
 	LearningUIMainLanguage     = "🌐 Language:"

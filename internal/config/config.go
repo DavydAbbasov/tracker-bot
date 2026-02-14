@@ -40,9 +40,10 @@ func ParseConfig() (*Config, error) {
 		return &cfg, nil
 	}
 
-	path := os.Getenv(envConfigPath) //prod
+	// In local runs, load config from file path (default .env).
+	path := os.Getenv(envConfigPath)
 	if path == "" {
-		path = defaultConfigPath // local
+		path = defaultConfigPath
 	}
 
 	if err := cleanenv.ReadConfig(path, &cfg); err != nil {

@@ -43,8 +43,6 @@ func (r *ReplyModule) HandleReplyButtons(ctx *tgctx.MsgContext) bool {
 	return false
 }
 
-// reply button
-
 func (r *ReplyModule) handleShowProfileMenu(ctx *tgctx.MsgContext) {
 	r.profile.ShowProfileMenu(ctx)
 }

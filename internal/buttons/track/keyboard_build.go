@@ -10,7 +10,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-// Inline botton menus
+// Inline button menus
 
 func TrackEntryInlineMenu() tgbotapi.InlineKeyboardMarkup {
 	return buttonbuilder.IK(
@@ -43,7 +43,7 @@ func TrackActivityReportReplyMenu() tgbotapi.ReplyKeyboardMarkup {
 
 func TrackActivityManageReplyMenu() tgbotapi.ReplyKeyboardMarkup {
 	return buttonbuilder.RK(
-		buttonbuilder.RR(buttonbuilder.RB(TrackButtonActivityActivate)),
+		buttonbuilder.RR(buttonbuilder.RB(TrackButtonActivityActivate), buttonbuilder.RB(TrackButtonActivityArchive)),
 		buttonbuilder.RR(buttonbuilder.RB(TrackButtonActivityDelete), buttonbuilder.RB(TrackButtonViewArchive)),
 		buttonbuilder.RR(buttonbuilder.RB(TrackButtonBackHome)),
 	)
@@ -94,10 +94,10 @@ func TrackActivitiesInlineMenu(items []models.TrackActivityItem) tgbotapi.Inline
 	}
 
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("🛒 Archive selected", TrackCBArchiveSelected),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelArchiveSelected, TrackCBArchiveSelected),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("↩️ Back", "back_to_main"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelBack, "back_to_main"),
 	))
 
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
@@ -119,7 +119,7 @@ func TrackPromptInlineMenu(items []models.TrackActivityItem, intervalMin int) tg
 		))
 	}
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("⏹ Stop Timer", TrackCBPromptStopTimer),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelStopTimer, TrackCBPromptStopTimer),
 	))
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
@@ -135,67 +135,67 @@ func TrackArchiveInlineMenu(items []models.TrackActivityItem) tgbotapi.InlineKey
 			title = item.Emoji + " " + item.Name
 		}
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("📦 "+title, "noop"),
+			tgbotapi.NewInlineKeyboardButtonData(TrackLabelArchiveItemPrefix+title, "noop"),
 		))
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("♻ Restore", fmt.Sprintf("%s%d", TrackCBArchiveRestore, item.ID)),
-			tgbotapi.NewInlineKeyboardButtonData("🗑 Delete forever", fmt.Sprintf("%s%d", TrackCBArchiveDelete, item.ID)),
+			tgbotapi.NewInlineKeyboardButtonData(TrackLabelRestore, fmt.Sprintf("%s%d", TrackCBArchiveRestore, item.ID)),
+			tgbotapi.NewInlineKeyboardButtonData(TrackLabelDeleteForever, fmt.Sprintf("%s%d", TrackCBArchiveDelete, item.ID)),
 		))
 	}
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("📂 Active activities", TrackCBArchiveToActive),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelActiveActivities, TrackCBArchiveToActive),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("↩️ Back", "back_to_main"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelBack, "back_to_main"),
 	))
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
 func TrackCreateSuccessInlineMenu() tgbotapi.InlineKeyboardMarkup {
-	return tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("📂 Open Activities", TrackCBOpenActivities),
-			tgbotapi.NewInlineKeyboardButtonData("➕ Create Another", TrackCBCreateAnother),
+	return buttonbuilder.IK(
+		buttonbuilder.IR(
+			buttonbuilder.IB(TrackLabelOpenActivities, TrackCBOpenActivities),
+			buttonbuilder.IB(TrackLabelCreateAnother, TrackCBCreateAnother),
 		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("↩️ Back", "back_to_main"),
+		buttonbuilder.IR(
+			buttonbuilder.IB(TrackLabelBack, "back_to_main"),
 		),
 	)
 }
 
 func TrackArchiveSuccessInlineMenu() tgbotapi.InlineKeyboardMarkup {
-	return tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🗄 Open Archive", TrackCBOpenArchive),
-			tgbotapi.NewInlineKeyboardButtonData("📂 Open Activities", TrackCBOpenActivities),
+	return buttonbuilder.IK(
+		buttonbuilder.IR(
+			buttonbuilder.IB(TrackLabelOpenArchive, TrackCBOpenArchive),
+			buttonbuilder.IB(TrackLabelOpenActivities, TrackCBOpenActivities),
 		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("↩️ Back", "back_to_main"),
+		buttonbuilder.IR(
+			buttonbuilder.IB(TrackLabelBack, "back_to_main"),
 		),
 	)
 }
 
 func TrackReportsHubInlineMenu() tgbotapi.InlineKeyboardMarkup {
-	return tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("📊 Today", TrackCBReportsToday),
+	return buttonbuilder.IK(
+		buttonbuilder.IR(
+			buttonbuilder.IB(TrackButtonToday, TrackCBReportsToday),
 		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("📅 Period", TrackCBReportsPeriodOpen),
+		buttonbuilder.IR(
+			buttonbuilder.IB(TrackButtonPeriod, TrackCBReportsPeriodOpen),
 		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("↩️ Back", "back_to_main"),
+		buttonbuilder.IR(
+			buttonbuilder.IB(TrackLabelBack, "back_to_main"),
 		),
 	)
 }
 
 func TrackReportTodayInlineMenu() tgbotapi.InlineKeyboardMarkup {
-	return tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🧩 Select activities", TrackCBReportsTodayBySelected),
+	return buttonbuilder.IK(
+		buttonbuilder.IR(
+			buttonbuilder.IB(TrackLabelSelectActivities, TrackCBReportsTodayBySelected),
 		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("↩️ Back to Reports", TrackCBReportsBackHub),
+		buttonbuilder.IR(
+			buttonbuilder.IB(TrackLabelBackToReports, TrackCBReportsBackHub),
 		),
 	)
 }
@@ -219,10 +219,10 @@ func TrackTodaySelectActivitiesInlineMenu(items []models.TrackActivityItem, sele
 		))
 	}
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("✅ Build chart", TrackCBReportsTodaySelBuild),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelBuildChart, TrackCBReportsTodaySelBuild),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("↩️ Back", TrackCBReportsToday),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelBack, TrackCBReportsToday),
 	))
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
@@ -230,7 +230,7 @@ func TrackTodaySelectActivitiesInlineMenu(items []models.TrackActivityItem, sele
 func TrackReportPeriodInlineMenu(items []models.TrackActivityItem, selected map[int64]bool, rangeLabel string) tgbotapi.InlineKeyboardMarkup {
 	rows := make([][]tgbotapi.InlineKeyboardButton, 0, len(items)+5)
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("Selected activities", "noop"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelSelectedActivities, "noop"),
 	))
 	for _, item := range items {
 		if strings.TrimSpace(item.Name) == "" {
@@ -249,14 +249,14 @@ func TrackReportPeriodInlineMenu(items []models.TrackActivityItem, selected map[
 		))
 	}
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("🗓 Range: "+rangeLabel, TrackCBReportsPeriodSetRange),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelRangePrefix+rangeLabel, TrackCBReportsPeriodSetRange),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("📄 Text report", TrackCBReportsPeriodText),
-		tgbotapi.NewInlineKeyboardButtonData("📉 Chart report", TrackCBReportsPeriodChart),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelTextReport, TrackCBReportsPeriodText),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelChartReport, TrackCBReportsPeriodChart),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("↩️ Back to Reports", TrackCBReportsBackHub),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelBackToReports, TrackCBReportsBackHub),
 	))
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
@@ -274,17 +274,17 @@ func TrackReportPeriodCalendarInlineMenu(month time.Time, from, to time.Time) tg
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData("◀", TrackCBReportsCalPrev),
-		tgbotapi.NewInlineKeyboardButtonData("Month", "noop"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelMonth, "noop"),
 		tgbotapi.NewInlineKeyboardButtonData("▶", TrackCBReportsCalNext),
 	))
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("Mo", "noop"),
-		tgbotapi.NewInlineKeyboardButtonData("Tu", "noop"),
-		tgbotapi.NewInlineKeyboardButtonData("We", "noop"),
-		tgbotapi.NewInlineKeyboardButtonData("Th", "noop"),
-		tgbotapi.NewInlineKeyboardButtonData("Fr", "noop"),
-		tgbotapi.NewInlineKeyboardButtonData("Sa", "noop"),
-		tgbotapi.NewInlineKeyboardButtonData("Su", "noop"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelMon, "noop"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelTue, "noop"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelWed, "noop"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelThu, "noop"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelFri, "noop"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelSat, "noop"),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelSun, "noop"),
 	))
 
 	day := 1
@@ -314,15 +314,15 @@ func TrackReportPeriodCalendarInlineMenu(month time.Time, from, to time.Time) tg
 			break
 		}
 	}
-	confirmLabel := "Select end date"
+	confirmLabel := TrackLabelSelectEndDate
 	confirmCB := "noop"
 	if !from.IsZero() && !to.IsZero() {
-		confirmLabel = "✅ Confirm range"
+		confirmLabel = TrackLabelConfirmRange
 		confirmCB = TrackCBReportsCalDone
 	}
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
 		tgbotapi.NewInlineKeyboardButtonData(confirmLabel, confirmCB),
-		tgbotapi.NewInlineKeyboardButtonData("Cancel", TrackCBReportsCalCancel),
+		tgbotapi.NewInlineKeyboardButtonData(TrackLabelCancel, TrackCBReportsCalCancel),
 	))
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }

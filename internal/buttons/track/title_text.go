@@ -34,8 +34,6 @@ func TrackingMenuText(stats models.MainStats) string {
 	)
 }
 
-//helpers
-
 // formatDuration formats duration into human-readable string like "4h 30m".
 func formatDuration(d time.Duration) string {
 	if d < 0 {
@@ -54,7 +52,7 @@ func formatDuration(d time.Duration) string {
 	}
 }
 
-// safeText
+// safeText returns fallback when string is empty.
 func safeText(s string) string {
 	if s == "" {
 		return "—"

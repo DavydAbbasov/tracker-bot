@@ -1,7 +1,6 @@
 package profile
 
-// ---------------------------------------------------------------------
-// Inline callbacks (actions)
+// Inline callbacks.
 const (
 	ProfileCBEditLanguage = "profile:edit:language"
 	ProfileCBEditTimeZone = "profile:edit:timezone"
@@ -9,11 +8,7 @@ const (
 	ProfileCBRefresh      = "profile:refresh"
 )
 
-// ---------------------------------------------------------------------
-
-// Buttons (Inline + Reply)
-
-// Entry inline menu buttons
+// Inline menu buttons.
 const (
 	ProfileButtonEditLanguage = "🌐 Language"
 	ProfileButtonEditTimeZone = "📍 Time zone"
@@ -21,7 +16,7 @@ const (
 	ProfileButtonRefresh      = "🔁 Refresh"
 )
 
-// Language manage reply buttons
+// Language reply menu buttons.
 const (
 	ProfileButtonLanguageRussian   = "🇷🇺 Русский"
 	ProfileButtonLanguageEnglish   = "🇺🇸 English"
@@ -30,10 +25,7 @@ const (
 	ProfileButtonLanguageArabian   = "🇸🇦 العربية"
 )
 
-// ---------------------------------------------------------------------
-// Track UI texts (titles/labels shown inside messages)
-
-// Main screen
+// Profile screen labels.
 const (
 	ProfileUIMainTitle    = "👤 Profile"
 	ProfileUIMainID       = "🛜 ID:"

@@ -1,7 +1,6 @@
 package subscription
 
-// ---------------------------------------------------------------------
-// Inline callbacks (actions)
+// Inline callbacks.
 const (
 	SubscriptionCBTariffPlans   = "subscription:tariff:plans"
 	SubscriptionCBFreePlan      = "subscription:free:plan"
@@ -9,10 +8,7 @@ const (
 	SubscriptionCBPaymentChange = "subscription:payment:change"
 )
 
-// ---------------------------------------------------------------------
-// Buttons (Inline + Reply)
-
-// Entry inline menu buttons
+// Inline menu buttons.
 const (
 	SubscriptionButtonTariffPlans   = "🗓 Tariff plans"
 	SubscriptionButtonFreePlan      = "🎁 Free"
@@ -20,10 +16,7 @@ const (
 	SubscriptionButtonPaymentChange = "💳 Change payment"
 )
 
-// ---------------------------------------------------------------------
-// Track UI texts (titles/labels shown inside messages)
-
-// Main screen
+// Subscription screen labels.
 const (
 	SubscriptionUIMainTitle      = "💳 Subscription"
 	SubscriptionUIMainTariffPlan = "🗓 Tariff plan:"
